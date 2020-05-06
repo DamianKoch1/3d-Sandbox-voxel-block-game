@@ -2,27 +2,48 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum BlockType
-{
-    opaque,
-    transparent,
-    fluid,
-    air
-}
-
-public class Block
+public abstract class Block
 {
     public Vector3Int pos;
 
-    public BlockType type;
-
-    public Block()
-    { }
-
-    public Block(Vector3Int _pos, BlockType _type = BlockType.opaque)
+    public Block(Vector3Int _pos)
     {
         pos = _pos;
-        type = _type;
+    }
+
+    public abstract bool DrawFaceNextTo(Block neighbour);
+}
+
+public class BlockOpaque : Block
+{
+    public BlockOpaque(Vector3Int _pos) : base(_pos)
+    { }
+
+    public override bool DrawFaceNextTo(Block neighbour)
+    {
+        return !(neighbour is BlockOpaque);
+    }
+}
+
+public class BlockTransparent : Block
+{
+    public BlockTransparent(Vector3Int _pos) : base(_pos)
+    { }
+
+    public override bool DrawFaceNextTo(Block neighbour)
+    {
+        return !(neighbour is BlockTransparent);
+    }
+}
+
+public class Fluid : Block
+{
+    public Fluid(Vector3Int _pos) : base(_pos)
+    { }
+
+    public override bool DrawFaceNextTo(Block neighbour)
+    {
+        return neighbour == null;
     }
 }
 

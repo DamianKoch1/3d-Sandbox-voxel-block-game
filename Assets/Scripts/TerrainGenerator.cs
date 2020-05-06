@@ -24,19 +24,27 @@ public class TerrainGenerator : MonoBehaviour
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
-    [Range(0, 1)]
-    public float perlinScale;
+    [Range(0, 0.15f)]
+    public float frequency;
 
+    [Range(0, 50)]
     public int amplitude;
 
     public bool useRandomSeed;
     
     public float seed;
 
+    private void Start()
+    {
+        Generate();
+    }
+
     public void Generate()
     {
-        Clear();
-        chunks = new Dictionary<Vector2Int, Chunk>();
+        if (chunks == null)
+        {
+            Clear();
+        }
 
         if (useRandomSeed)
         {
@@ -47,10 +55,18 @@ public class TerrainGenerator : MonoBehaviour
         {
             for (int z = 0; z < chunkCount.y; z++)
             {
-                var chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
                 var chunkPos = new Vector2Int(x, z);
-                chunk.Initialize(chunkPos);
-                chunks[chunkPos] = chunk;
+                Chunk chunk;
+                if (chunks.ContainsKey(chunkPos))
+                {
+                    chunks[chunkPos].Generate();
+                }
+                else
+                {
+                    chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
+                    chunk.Initialize(chunkPos);
+                    chunks[chunkPos] = chunk;
+                }
             }
         }
     }
@@ -67,7 +83,7 @@ public class TerrainGenerator : MonoBehaviour
 
     public int PerlinNoise(float x, float z)
     {
-        return (int)(Mathf.PerlinNoise(x * perlinScale + seed, z * perlinScale + seed) * amplitude);
+        return (int)(Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude);
     }
 
     public Chunk GetChunk(float x, float z)
@@ -82,5 +98,19 @@ public class TerrainGenerator : MonoBehaviour
         var chunk = GetChunk(x, z);
         if (!chunk) return null;
         return chunk.GetBlock(x, y, z);
+    }
+
+    public bool DestroyBlock(Vector3 pos)
+    {
+        var chunk = GetChunk(pos.x, pos.z);
+        if (!chunk) return false;
+        return chunk.DestroyBlock(pos);
+    }
+
+    public bool PlaceBlock(Vector3 pos)
+    {
+        var chunk = GetChunk(pos.x, pos.z);
+        if (!chunk) return false;
+        return chunk.PlaceBlock(pos);
     }
 }
