@@ -4,25 +4,34 @@ using UnityEngine;
 
 public class TerrainGenerator : MonoBehaviour
 {
-    public GameObject cube;
+    private static TerrainGenerator instance;
+    public static TerrainGenerator Instance
+    {
+        get
+        {
+            if (!instance)
+            {
+                instance = FindObjectOfType<TerrainGenerator>();
+            }
+            return instance;
+        }
+    }
 
-    public Vector2Int dimensions;
+
+    public Chunk chunkPrefab;
+
+    public Vector2Int chunkCount;
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
     [Range(0, 1)]
     public float perlinScale;
 
-    public float amplitude;
+    public int amplitude;
 
     public bool useRandomSeed;
     
     public float seed;
-
-    void Start()
-    {
-
-    }
 
     public void Generate()
     {
@@ -34,11 +43,14 @@ public class TerrainGenerator : MonoBehaviour
             seed = Random.Range(0f, 10000f);
         }
 
-        for (int i = 0; i < dimensions.x; i++)
+        for (int x = 0; x < chunkCount.x; x++)
         {
-            for (int j = 0; j < dimensions.y; j++)
+            for (int z = 0; z < chunkCount.y; z++)
             {
-                Instantiate(cube, transform).transform.position = new Vector3(i, PerlinNoise(i, j) * amplitude, j);
+                var chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
+                var chunkPos = new Vector2Int(x, z);
+                chunk.Initialize(chunkPos);
+                chunks[chunkPos] = chunk;
             }
         }
     }
@@ -53,13 +65,22 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
-    void Update()
+    public int PerlinNoise(float x, float z)
     {
-
+        return (int)(Mathf.PerlinNoise(x * perlinScale + seed, z * perlinScale + seed) * amplitude);
     }
 
-    public float PerlinNoise(float x, float y)
+    public Chunk GetChunk(float x, float z)
     {
-        return Mathf.PerlinNoise(x * perlinScale + seed, y * perlinScale + seed) * amplitude;
+        var chunkPos = new Vector2Int((int)(x / 16), (int)(z / 16));
+        if (!chunks.ContainsKey(chunkPos)) return null;
+        return chunks[chunkPos];
+    }
+
+    public Block GetBlock(float x, float y, float z)
+    {
+        var chunk = GetChunk(x, z);
+        if (!chunk) return null;
+        return chunk.GetBlock(x, y, z);
     }
 }
