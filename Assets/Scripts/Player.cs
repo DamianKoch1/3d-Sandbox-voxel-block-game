@@ -27,6 +27,13 @@ public class Player : MonoBehaviour
 
     private Camera cam;
 
+    private Block targetBlock;
+
+    private RaycastHit interactHit;
+
+    float placeCD = 0;
+
+    float breakCD = 0;
 
     private void Start()
     {
@@ -44,6 +51,42 @@ public class Player : MonoBehaviour
     }
 
     private void Update()
+    {
+        Movement();
+
+        if (breakCD > 0)
+        {
+            breakCD = Mathf.Max(0, breakCD - Time.deltaTime);
+        }
+
+        if (placeCD > 0)
+        {
+            placeCD = Mathf.Max(0, placeCD - Time.deltaTime);
+        }
+
+
+        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out interactHit, interactRange))
+        {
+            targetBlock = TerrainGenerator.Instance.GetBlock(interactHit.point - interactHit.normal * 0.01f);
+
+            if (Input.GetButton("Fire1"))
+            {
+                DestroyBlock();
+            }
+
+            if (Input.GetButton("Fire2"))
+            {
+                PlaceBlock();
+            }
+
+            if (targetBlock != null)
+            {
+                Debug.DrawLine(targetBlock.pos + Vector3.one * 0.5f, targetBlock.pos + Vector3.one * 0.5f + Vector3.up);
+            }
+        }
+    }
+
+    private void Movement()
     {
         var input = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized;
 
@@ -84,30 +127,29 @@ public class Player : MonoBehaviour
         cam.transform.eulerAngles = new Vector3(pitch, yaw, 0);
 
         controller.Move((motion.x * transform.right + motion.y * Vector3.up + motion.z * transform.forward) * Time.deltaTime);
-
-        if (Input.GetButton("Fire1"))
-        {
-            DestroyBlock();
-        }
-
-        if (Input.GetButton("Fire2"))
-        {
-            PlaceBlock();
-        }
     }
 
     private bool PlaceBlock()
     {
-        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out var hit, interactRange)) return false;
-        if (hit.point.y <= 0) return false;
-        if (hit.point.y >= Chunk.HEIGHT) return false;
-        return TerrainGenerator.Instance.PlaceBlock(hit.point + hit.normal * 0.01f);
+        if (placeCD > 0) return false;
+        if (TerrainGenerator.Instance.PlaceBlock(interactHit.point + interactHit.normal * 0.01f))
+        {
+            placeCD = 0.1f;
+            return true;
+        }
+        return false;
     }
 
     private bool DestroyBlock()
     {
-        if (!Physics.Raycast(cam.transform.position, cam.transform.forward, out var hit, interactRange)) return false;
-        return TerrainGenerator.Instance.DestroyBlock(hit.point - hit.normal * 0.01f);
+        if (breakCD > 0) return false;
+        if (targetBlock == null) return false;
+        if (TerrainGenerator.Instance.DestroyBlock(interactHit.point - interactHit.normal * 0.01f))
+        {
+            breakCD = 0.1f;
+            return true;
+        }
+        return false;
     }
 
     private void OnDrawGizmosSelected()

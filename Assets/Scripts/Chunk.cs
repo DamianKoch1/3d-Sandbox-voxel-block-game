@@ -8,9 +8,7 @@ public class Chunk : MonoBehaviour
 
     public const int HEIGHT = 128;
 
-    public const int MIN_SURFACE_LEVEL = 50;
 
-    public const int WATER_LEVEL = 60;
 
     public Vector2Int pos;
 
@@ -24,6 +22,10 @@ public class Chunk : MonoBehaviour
 
     MeshCollider mc;
 
+    public GameObject waterPrefab;
+
+    private GameObject water;
+
 
     public void Initialize(Vector2Int _pos)
     {
@@ -34,27 +36,35 @@ public class Chunk : MonoBehaviour
         transform.position = new Vector3(pos.x * SIZE, 0, pos.y * SIZE);
         gameObject.name = "Chunk " + pos;
         Generate();
+        water = Instantiate(waterPrefab, transform);
     }
 
-    public void Generate()
+    public virtual void Generate()
     {
         blocks = new Block[SIZE, HEIGHT, SIZE];
         for (int x = 0; x < SIZE; x++)
         {
             for (int z = 0; z < SIZE; z++)
             {
-                Vector3Int blockPos = new Vector3Int(x, TerrainGenerator.Instance.PerlinNoise(x + pos.x * 16, z + pos.y * 16) + MIN_SURFACE_LEVEL, z);
-                for (int y = 0; y <= blockPos.y; y++)
+                var localSurfaceLevel = TerrainGenerator.Instance.PerlinNoise(x + pos.x * 16, z + pos.y * 16);
+                for (int y = 0; y < Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
                 {
-                    var block = new BlockOpaque(blockPos);
-                    blocks[blockPos.x, blockPos.y - y, blockPos.z] = block;
+                    if (y <= localSurfaceLevel)
+                    {
+                        var block = new BlockOpaque(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                        blocks[x, y, z] = block;
+                    }
+                    else
+                    {
+                        var water = new Fluid(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                        blocks[x, y, z] = water;
+                    }
                 }
             }
         }
-        MakeMesh();
     }
 
-    private void MakeMesh()
+    public void MakeMesh()
     {
         mesh = new Mesh();
 
@@ -72,9 +82,18 @@ public class Chunk : MonoBehaviour
                     if (block == null) continue;
                     var blockPos = new Vector3(x, y, z);
                     int numFaces = 0;
+                    Block neighbour;
 
+                    if (z == 0)
+                    {
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos - Vector3.forward);
+                    }
+                    else
+                    {
+                        neighbour = blocks[x, y, z - 1];
+                    }
 
-                    if (z == 0 || block.DrawFaceNextTo(blocks[x, y, z - 1]))
+                    if (block.DrawFaceNextTo(neighbour))
                     {
                         //front
                         vertices.Add(blockPos + new Vector3(0, 0, 0));
@@ -84,7 +103,17 @@ public class Chunk : MonoBehaviour
                         numFaces++;
                     }
 
-                    if (z == SIZE - 1 || block.DrawFaceNextTo(blocks[x, y, z + 1]))
+
+                    if (z == SIZE - 1)
+                    {
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos + Vector3.forward);
+                    }
+                    else
+                    {
+                        neighbour = blocks[x, y, z + 1];
+                    }
+
+                    if (block.DrawFaceNextTo(neighbour))
                     {
                         //back
                         vertices.Add(blockPos + new Vector3(1, 0, 1));
@@ -94,17 +123,17 @@ public class Chunk : MonoBehaviour
                         numFaces++;
                     }
 
-                    if (x == SIZE - 1 || block.DrawFaceNextTo(blocks[x + 1, y, z]))
+
+                    if (x == 0)
                     {
-                        //right
-                        vertices.Add(blockPos + new Vector3(1, 0, 0));
-                        vertices.Add(blockPos + new Vector3(1, 1, 0));
-                        vertices.Add(blockPos + new Vector3(1, 1, 1));
-                        vertices.Add(blockPos + new Vector3(1, 0, 1));
-                        numFaces++;
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos - Vector3.right);
+                    }
+                    else
+                    {
+                        neighbour = blocks[x - 1, y, z];
                     }
 
-                    if (x == 0 || block.DrawFaceNextTo(blocks[x - 1, y, z]))
+                    if (block.DrawFaceNextTo(neighbour))
                     {
                         //left
                         vertices.Add(blockPos + new Vector3(0, 0, 1));
@@ -114,17 +143,37 @@ public class Chunk : MonoBehaviour
                         numFaces++;
                     }
 
-                    if (y == HEIGHT - 1 || block.DrawFaceNextTo(blocks[x, y + 1, z]))
+
+                    if (x == SIZE - 1)
                     {
-                        //top
-                        vertices.Add(blockPos + new Vector3(0, 1, 0));
-                        vertices.Add(blockPos + new Vector3(0, 1, 1));
-                        vertices.Add(blockPos + new Vector3(1, 1, 1));
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos + Vector3.right);
+                    }
+                    else
+                    {
+                        neighbour = blocks[x + 1, y, z];
+                    }
+
+                    if (block.DrawFaceNextTo(neighbour))
+                    {
+                        //right
+                        vertices.Add(blockPos + new Vector3(1, 0, 0));
                         vertices.Add(blockPos + new Vector3(1, 1, 0));
+                        vertices.Add(blockPos + new Vector3(1, 1, 1));
+                        vertices.Add(blockPos + new Vector3(1, 0, 1));
                         numFaces++;
                     }
 
-                    if (y == 0 || block.DrawFaceNextTo(blocks[x, y - 1, z]))
+
+                    if (y == 0)
+                    {
+                        neighbour = null;
+                    }
+                    else
+                    {
+                        neighbour = blocks[x, y - 1, z];
+                    }
+
+                    if (block.DrawFaceNextTo(neighbour))
                     {
                         //bottom
                         vertices.Add(blockPos + new Vector3(0, 0, 0));
@@ -134,6 +183,26 @@ public class Chunk : MonoBehaviour
                         numFaces++;
                     }
 
+                    if (y == HEIGHT - 1)
+                    {
+                        neighbour = null;
+                    }
+                    else
+                    {
+                        neighbour = blocks[x, y + 1, z];
+                        if (block.DrawFaceNextTo(neighbour))
+                        {
+                            //top
+                            vertices.Add(blockPos + new Vector3(0, 1, 0));
+                            vertices.Add(blockPos + new Vector3(0, 1, 1));
+                            vertices.Add(blockPos + new Vector3(1, 1, 1));
+                            vertices.Add(blockPos + new Vector3(1, 1, 0));
+                            numFaces++;
+                        }
+                    }
+
+
+
 
                     int triangleIdx = vertices.Count - numFaces * 4;
                     for (int i = 0; i < numFaces; i++)
@@ -141,8 +210,8 @@ public class Chunk : MonoBehaviour
                         int i4 = i * 4;
                         triangles.AddRange(new int[]
                         {
-                                triangleIdx + i4, triangleIdx + i4 + 1, triangleIdx + i4 + 2,
-                                triangleIdx + i4, triangleIdx + i4 + 2, triangleIdx + i4 + 3
+                            triangleIdx + i4, triangleIdx + i4 + 1, triangleIdx + i4 + 2,
+                            triangleIdx + i4, triangleIdx + i4 + 2, triangleIdx + i4 + 3
                         });
                     }
                 }
@@ -158,36 +227,43 @@ public class Chunk : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.Optimize();
 
+        mf.mesh = null;
         mf.mesh = mesh;
 
         mc.sharedMesh = null;
         mc.sharedMesh = mesh;
     }
 
-    public Block GetBlock(float x, float y, float z)
+    public Vector3Int GetBlockIdx(Vector3 v)
     {
-        return blocks[(int)x - pos.x * SIZE, (int)y, (int)z - pos.y * SIZE];
+        Vector3Int vi = Vector3Int.zero;
+        vi.x = Mathf.FloorToInt(v.x) - pos.x * SIZE;
+        vi.y = Mathf.FloorToInt(v.y);
+        vi.z = Mathf.FloorToInt(v.z) - pos.y * SIZE;
+        return vi;
+    }
+
+    public Block GetBlock(Vector3 _pos)
+    {
+        var idx = GetBlockIdx(_pos);
+        return blocks[idx.x, idx.y, idx.z];
     }
 
     public bool DestroyBlock(Vector3 _pos)
     {
-        int x = (int)_pos.x - pos.x * SIZE;
-        int y = (int)_pos.y;
-        int z = (int)_pos.z - pos.y * SIZE;
-        if (blocks[x, y, z] == null) return false;
-        blocks[x, y, z] = null;
+        var idx = GetBlockIdx(_pos);
+        if (blocks[idx.x, idx.y, idx.z] == null) return false;
+        blocks[idx.x, idx.y, idx.z] = null;
         MakeMesh();
         return true;
     }
 
     public bool PlaceBlock(Vector3 _pos)
     {
-        int x = (int)_pos.x - pos.x * SIZE;
-        int y = (int)_pos.y;
-        int z = (int)_pos.z - pos.y * SIZE;
-        if (blocks[x, y, z] != null) return false;
-        if (Physics.CheckBox(new Vector3(x, y, z) + Vector3.one * 0.5f, Vector3.one * 0.4f)) return false;
-        blocks[x, y, z] = new BlockOpaque(new Vector3Int(x, y, z));
+        var idx = GetBlockIdx(_pos);
+        if (blocks[idx.x, idx.y, idx.z] != null) return false;
+        if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.5f)) return false;
+        blocks[idx.x, idx.y, idx.z] = new BlockOpaque(new Vector3Int(idx.x, idx.y, idx.z));
         MakeMesh();
         return true;
     }

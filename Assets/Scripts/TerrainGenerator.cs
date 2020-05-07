@@ -20,8 +20,6 @@ public class TerrainGenerator : MonoBehaviour
 
     public Chunk chunkPrefab;
 
-    public Vector2Int chunkCount;
-
     public Dictionary<Vector2Int, Chunk> chunks;
 
     [Range(0, 0.15f)]
@@ -30,8 +28,12 @@ public class TerrainGenerator : MonoBehaviour
     [Range(0, 50)]
     public int amplitude;
 
+    public int minSurfaceLevel = 50;
+
+    public int waterLevel = 60;
+
     public bool useRandomSeed;
-    
+
     public float seed;
 
     private void Start()
@@ -41,33 +43,32 @@ public class TerrainGenerator : MonoBehaviour
 
     public void Generate()
     {
-        if (chunks == null)
-        {
-            Clear();
-        }
+        Clear();
 
         if (useRandomSeed)
         {
             seed = Random.Range(0f, 10000f);
         }
 
-        for (int x = 0; x < chunkCount.x; x++)
+        for (int x = -2; x < 2; x++)
         {
-            for (int z = 0; z < chunkCount.y; z++)
+            for (int z = -2; z < 2; z++)
             {
                 var chunkPos = new Vector2Int(x, z);
-                Chunk chunk;
-                if (chunks.ContainsKey(chunkPos))
-                {
-                    chunks[chunkPos].Generate();
-                }
-                else
-                {
-                    chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
-                    chunk.Initialize(chunkPos);
-                    chunks[chunkPos] = chunk;
-                }
+                var chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
+                chunk.Initialize(chunkPos);
+                chunks[chunkPos] = chunk;
             }
+        }
+
+        MakeMesh();
+    }
+
+    public void MakeMesh()
+    {
+        foreach (var chunk in chunks.Values)
+        {
+            chunk.MakeMesh();
         }
     }
 
@@ -83,21 +84,21 @@ public class TerrainGenerator : MonoBehaviour
 
     public int PerlinNoise(float x, float z)
     {
-        return (int)(Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude);
+        return (int)(Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude) + minSurfaceLevel;
     }
 
     public Chunk GetChunk(float x, float z)
     {
-        var chunkPos = new Vector2Int((int)(x / 16), (int)(z / 16));
+        var chunkPos = new Vector2Int(Mathf.FloorToInt(x / 16), Mathf.FloorToInt(z / 16));
         if (!chunks.ContainsKey(chunkPos)) return null;
         return chunks[chunkPos];
     }
 
-    public Block GetBlock(float x, float y, float z)
+    public Block GetBlock(Vector3 pos)
     {
-        var chunk = GetChunk(x, z);
+        var chunk = GetChunk(pos.x, pos.z);
         if (!chunk) return null;
-        return chunk.GetBlock(x, y, z);
+        return chunk.GetBlock(pos);
     }
 
     public bool DestroyBlock(Vector3 pos)
@@ -109,6 +110,8 @@ public class TerrainGenerator : MonoBehaviour
 
     public bool PlaceBlock(Vector3 pos)
     {
+        if (pos.y <= 0) return false;
+        if (pos.y >= Chunk.HEIGHT) return false;
         var chunk = GetChunk(pos.x, pos.z);
         if (!chunk) return false;
         return chunk.PlaceBlock(pos);

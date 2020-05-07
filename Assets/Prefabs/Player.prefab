@@ -55,7 +55,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: 0.1
   far clip plane: 1000
   field of view: 60
   orthographic: 0
@@ -97,7 +97,7 @@ GameObject:
   - component: {fileID: 2331962426365974222}
   - component: {fileID: 2331962426365974223}
   - component: {fileID: 725141363448061359}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -216,6 +216,9 @@ MonoBehaviour:
   camSpeedH: 2
   camSpeedV: 2
   interactRange: 6
+  breakBlockMask:
+    serializedVersion: 2
+    m_Bits: 1
 --- !u!1 &4795237665350967641
 GameObject:
   m_ObjectHideFlags: 0
