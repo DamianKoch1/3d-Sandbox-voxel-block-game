@@ -7,6 +7,7 @@ public class Player : MonoBehaviour
     CharacterController controller;
 
     public float gravity = 9.81f;
+    private float swimGravity = 0;
 
     public float speed;
 
@@ -35,6 +36,8 @@ public class Player : MonoBehaviour
 
     float breakCD = 0;
 
+    private Fluid fluid;
+
     private void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -52,6 +55,16 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
+        if (footBlock is Fluid)
+        {
+            fluid = (Fluid)footBlock;
+        }
+        else
+        {
+            fluid = null;
+        }
+
         Movement();
 
         if (breakCD > 0)
@@ -77,11 +90,6 @@ public class Player : MonoBehaviour
             if (Input.GetButton("Fire2"))
             {
                 PlaceBlock();
-            }
-
-            if (targetBlock != null)
-            {
-                Debug.DrawLine(targetBlock.pos + Vector3.one * 0.5f, targetBlock.pos + Vector3.one * 0.5f + Vector3.up);
             }
         }
     }
@@ -116,6 +124,17 @@ public class Player : MonoBehaviour
             else
             {
                 motion.y = 0;
+            }
+        }
+        else if (fluid != null)
+        {
+            if (Input.GetButton("Jump"))
+            {
+                motion.y = fluid.fallSpeed;
+            }
+            else if (motion.y > -fluid.fallSpeed)
+            {
+                motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
             }
         }
         else

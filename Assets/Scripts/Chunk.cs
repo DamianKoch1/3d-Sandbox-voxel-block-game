@@ -14,17 +14,15 @@ public class Chunk : MonoBehaviour
 
     public Block[,,] blocks;
 
-    Mesh mesh;
+    private Mesh mesh;
 
-    MeshRenderer mr;
+    private MeshRenderer mr;
 
-    MeshFilter mf;
+    private MeshFilter mf;
 
-    MeshCollider mc;
+    private MeshCollider mc;
 
-    public GameObject waterPrefab;
-
-    private GameObject water;
+    private FluidChunk fluidChunk;
 
 
     public void Initialize(Vector2Int _pos)
@@ -33,12 +31,16 @@ public class Chunk : MonoBehaviour
         mr = GetComponent<MeshRenderer>();
         mf = GetComponent<MeshFilter>();
         mc = GetComponent<MeshCollider>();
+        fluidChunk = GetComponentInChildren<FluidChunk>();
+        fluidChunk.Initialize();
         transform.position = new Vector3(pos.x * SIZE, 0, pos.y * SIZE);
         gameObject.name = "Chunk " + pos;
         Generate();
-        water = Instantiate(waterPrefab, transform);
     }
 
+    /// <summary>
+    /// Generates blocks / water using TerrainGenerator settings / noise
+    /// </summary>
     public virtual void Generate()
     {
         blocks = new Block[SIZE, HEIGHT, SIZE];
@@ -49,28 +51,40 @@ public class Chunk : MonoBehaviour
                 var localSurfaceLevel = TerrainGenerator.Instance.PerlinNoise(x + pos.x * 16, z + pos.y * 16);
                 for (int y = 0; y < Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
                 {
+                    Block block = null;
                     if (y <= localSurfaceLevel)
                     {
-                        var block = new BlockOpaque(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                        blocks[x, y, z] = block;
+                        block = new BlockOpaque(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
                     }
                     else
                     {
-                        var water = new Fluid(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                        blocks[x, y, z] = water;
+                        block = new Fluid(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
                     }
+                    blocks[x, y, z] = block;
                 }
             }
         }
     }
 
-    public void MakeMesh()
+    /// <summary>
+    /// Builds visible faces, fluid faces are added to child instead
+    /// </summary>
+    public virtual void MakeMesh()
     {
         mesh = new Mesh();
+        mesh.Clear();
 
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Vector2> UVs = new List<Vector2>();
+
+        List<Vector3> fluidVertices = new List<Vector3>();
+        List<int> fluidTriangles = new List<int>();
+        List<Vector2> fluidUVs = new List<Vector2>();
+
+        List<Vector3> vertexList = vertices;
+        List<int> triList = triangles;
+        List<Vector2> uvList = UVs;
 
         for (int x = 0; x < SIZE; x++)
         {
@@ -80,6 +94,19 @@ public class Chunk : MonoBehaviour
                 {
                     var block = blocks[x, y, z];
                     if (block == null) continue;
+                    if (block is Fluid)
+                    {
+                        vertexList = fluidVertices;
+                        triList = fluidTriangles;
+                        uvList = fluidUVs;
+                    }
+                    else
+                    {
+                        vertexList = vertices;
+                        triList = triangles;
+                        uvList = UVs;
+                    }
+
                     var blockPos = new Vector3(x, y, z);
                     int numFaces = 0;
                     Block neighbour;
@@ -96,10 +123,10 @@ public class Chunk : MonoBehaviour
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //front
-                        vertices.Add(blockPos + new Vector3(0, 0, 0));
-                        vertices.Add(blockPos + new Vector3(0, 1, 0));
-                        vertices.Add(blockPos + new Vector3(1, 1, 0));
-                        vertices.Add(blockPos + new Vector3(1, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
                         numFaces++;
                     }
 
@@ -116,10 +143,10 @@ public class Chunk : MonoBehaviour
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //back
-                        vertices.Add(blockPos + new Vector3(1, 0, 1));
-                        vertices.Add(blockPos + new Vector3(1, 1, 1));
-                        vertices.Add(blockPos + new Vector3(0, 1, 1));
-                        vertices.Add(blockPos + new Vector3(0, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
                         numFaces++;
                     }
 
@@ -136,10 +163,10 @@ public class Chunk : MonoBehaviour
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //left
-                        vertices.Add(blockPos + new Vector3(0, 0, 1));
-                        vertices.Add(blockPos + new Vector3(0, 1, 1));
-                        vertices.Add(blockPos + new Vector3(0, 1, 0));
-                        vertices.Add(blockPos + new Vector3(0, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
                         numFaces++;
                     }
 
@@ -156,10 +183,10 @@ public class Chunk : MonoBehaviour
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //right
-                        vertices.Add(blockPos + new Vector3(1, 0, 0));
-                        vertices.Add(blockPos + new Vector3(1, 1, 0));
-                        vertices.Add(blockPos + new Vector3(1, 1, 1));
-                        vertices.Add(blockPos + new Vector3(1, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
                         numFaces++;
                     }
 
@@ -176,10 +203,10 @@ public class Chunk : MonoBehaviour
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //bottom
-                        vertices.Add(blockPos + new Vector3(0, 0, 0));
-                        vertices.Add(blockPos + new Vector3(1, 0, 0));
-                        vertices.Add(blockPos + new Vector3(1, 0, 1));
-                        vertices.Add(blockPos + new Vector3(0, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
+                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
+                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
                         numFaces++;
                     }
 
@@ -193,22 +220,19 @@ public class Chunk : MonoBehaviour
                         if (block.DrawFaceNextTo(neighbour))
                         {
                             //top
-                            vertices.Add(blockPos + new Vector3(0, 1, 0));
-                            vertices.Add(blockPos + new Vector3(0, 1, 1));
-                            vertices.Add(blockPos + new Vector3(1, 1, 1));
-                            vertices.Add(blockPos + new Vector3(1, 1, 0));
+                            vertexList.Add(blockPos + new Vector3(0, 1, 0));
+                            vertexList.Add(blockPos + new Vector3(0, 1, 1));
+                            vertexList.Add(blockPos + new Vector3(1, 1, 1));
+                            vertexList.Add(blockPos + new Vector3(1, 1, 0));
                             numFaces++;
                         }
                     }
 
-
-
-
-                    int triangleIdx = vertices.Count - numFaces * 4;
+                    int triangleIdx = vertexList.Count - numFaces * 4;
                     for (int i = 0; i < numFaces; i++)
                     {
                         int i4 = i * 4;
-                        triangles.AddRange(new int[]
+                        triList.AddRange(new int[]
                         {
                             triangleIdx + i4, triangleIdx + i4 + 1, triangleIdx + i4 + 2,
                             triangleIdx + i4, triangleIdx + i4 + 2, triangleIdx + i4 + 3
@@ -217,8 +241,18 @@ public class Chunk : MonoBehaviour
                 }
             }
         }
+        fluidChunk.ApplyMesh(fluidVertices, fluidTriangles);
 
+        ApplyMesh(vertices, triangles);
+    }
 
+    /// <summary>
+    /// Builds mesh from vertices / triangles, applies it to collider / filter
+    /// </summary>
+    /// <param name="vertices"></param>
+    /// <param name="triangles"></param>
+    private void ApplyMesh(List<Vector3> vertices, List<int> triangles)
+    {
         mesh.vertices = vertices.ToArray();
 
         mesh.triangles = triangles.ToArray();
@@ -227,13 +261,17 @@ public class Chunk : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.Optimize();
 
-        mf.mesh = null;
         mf.mesh = mesh;
 
         mc.sharedMesh = null;
         mc.sharedMesh = mesh;
     }
 
+    /// <summary>
+    /// Get the block index (local, 0 - (SIZE-1)) of this chunk at v
+    /// </summary>
+    /// <param name="v">position of block to get local index for (world pos)</param>
+    /// <returns></returns>
     public Vector3Int GetBlockIdx(Vector3 v)
     {
         Vector3Int vi = Vector3Int.zero;
@@ -243,28 +281,53 @@ public class Chunk : MonoBehaviour
         return vi;
     }
 
-    public Block GetBlock(Vector3 _pos)
+    /// <summary>
+    /// Get the block in this chunk at _pos
+    /// </summary>
+    /// <param name="_pos">position of block (world pos)</param>
+    /// <returns></returns>
+    public Block GetBlockByPos(Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
         return blocks[idx.x, idx.y, idx.z];
     }
 
+    /// <summary>
+    /// Destroys block at _pos, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
+    /// </summary>
+    /// <param name="_pos">position of block to destroy (world pos)</param>
+    /// <returns></returns>
     public bool DestroyBlock(Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
-        if (blocks[idx.x, idx.y, idx.z] == null) return false;
+        var block = blocks[idx.x, idx.y, idx.z];
+        if (block == null) return false;
         blocks[idx.x, idx.y, idx.z] = null;
         MakeMesh();
+        if (idx.x == 0) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.left)?.MakeMesh();
+        else if (idx.x == SIZE - 1) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.right)?.MakeMesh();
+        if (idx.z == 0) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.down)?.MakeMesh();
+        else if (idx.z == SIZE - 1) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.up)?.MakeMesh();
         return true;
     }
 
+    /// <summary>
+    /// Places default block at _pos, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
+    /// </summary>
+    /// <param name="_pos">where to place block (world pos)</param>
+    /// <returns></returns>
     public bool PlaceBlock(Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
-        if (blocks[idx.x, idx.y, idx.z] != null) return false;
+        var block = blocks[idx.x, idx.y, idx.z];
+        if (block != null) return false;
         if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.5f)) return false;
         blocks[idx.x, idx.y, idx.z] = new BlockOpaque(new Vector3Int(idx.x, idx.y, idx.z));
         MakeMesh();
+        if (idx.x == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.left]?.MakeMesh();
+        else if (idx.x == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.right]?.MakeMesh();
+        if (idx.z == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.down]?.MakeMesh();
+        else if (idx.z == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.up]?.MakeMesh();
         return true;
     }
 }

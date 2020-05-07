@@ -175,8 +175,8 @@ CapsuleCollider:
   m_Material: {fileID: 0}
   m_IsTrigger: 0
   m_Enabled: 1
-  m_Radius: 0.5
-  m_Height: 2
+  m_Radius: 0.4
+  m_Height: 1.8
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!143 &2331962426365974223
@@ -193,8 +193,8 @@ CharacterController:
   m_Height: 1.8
   m_Radius: 0.4
   m_SlopeLimit: 45
-  m_StepOffset: 1
-  m_SkinWidth: 0.08
+  m_StepOffset: 0.5
+  m_SkinWidth: 0.01
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &725141363448061359
@@ -216,9 +216,6 @@ MonoBehaviour:
   camSpeedH: 2
   camSpeedV: 2
   interactRange: 6
-  breakBlockMask:
-    serializedVersion: 2
-    m_Bits: 1
 --- !u!1 &4795237665350967641
 GameObject:
   m_ObjectHideFlags: 0

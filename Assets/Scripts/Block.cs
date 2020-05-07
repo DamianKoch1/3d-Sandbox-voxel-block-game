@@ -11,6 +11,11 @@ public abstract class Block
         pos = _pos;
     }
 
+    /// <summary>
+    /// Should a face be drawn when given block is next to it?
+    /// </summary>
+    /// <param name="neighbour">neighbour block</param>
+    /// <returns></returns>
     public abstract bool DrawFaceNextTo(Block neighbour);
 }
 
@@ -45,5 +50,7 @@ public class Fluid : Block
     {
         return neighbour == null;
     }
+
+    public float fallSpeed = 3;
 }
 
