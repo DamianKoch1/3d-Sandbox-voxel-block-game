@@ -44,6 +44,14 @@ public class TerrainGenerator : MonoBehaviour
 
     public float seed;
 
+    public float amplifierSeed;
+
+    [Range(0, 100)]
+    public float amp2;
+
+    [Range(0, 0.15f)]
+    public float freq2;
+
     private Player player;
 
     public Vector2Int playerChunkPos;
@@ -144,6 +152,7 @@ public class TerrainGenerator : MonoBehaviour
         if (useRandomSeed)
         {
             seed = Random.Range(0f, 10000f);
+            amplifierSeed = Random.Range(0f, 10000f);
         }
 
         for (int x = -renderDistance; x <= renderDistance; x++)
@@ -209,7 +218,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public int PerlinNoise(float x, float z)
     {
-        return (int)(Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude) + minSurfaceLevel;
+        return (int)(Mathf.PerlinNoise(x * freq2 + amplifierSeed, z * freq2 + amplifierSeed) * (Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude)) + minSurfaceLevel;
     }
 
     /// <summary>
