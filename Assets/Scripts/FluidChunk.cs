@@ -22,13 +22,15 @@ public class FluidChunk : MonoBehaviour
     /// </summary>
     /// <param name="vertices"></param>
     /// <param name="triangles"></param>
-    public void ApplyMesh(List<Vector3> vertices, List<int> triangles)
+    public void ApplyMesh(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs)
     {
         mesh.Clear();
        
         mesh.vertices = vertices.ToArray();
 
         mesh.triangles = triangles.ToArray();
+
+        mesh.uv = uvs.ToArray();
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();

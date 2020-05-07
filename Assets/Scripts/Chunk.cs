@@ -49,17 +49,18 @@ public class Chunk : MonoBehaviour
             for (int z = 0; z < SIZE; z++)
             {
                 var localSurfaceLevel = TerrainGenerator.Instance.PerlinNoise(x + pos.x * 16, z + pos.y * 16);
-                for (int y = 0; y < Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
+                for (int y = 0; y <= Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
                 {
                     Block block = null;
-                    if (y <= localSurfaceLevel)
+                    if (y == 0) block = new BottomStone(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                    else if (y > localSurfaceLevel) block = new Water(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                    else if (y == localSurfaceLevel)
                     {
-                        block = new BlockOpaque(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                        if (y >= TerrainGenerator.Instance.waterLevel) block = new Grass(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                        else block = new Dirt(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
                     }
-                    else
-                    {
-                        block = new Fluid(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                    }
+                    else if (y > localSurfaceLevel - TerrainGenerator.Instance.dirtLayerSize) block = new Dirt(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                    else if (y > 0) block = new Stone(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
                     blocks[x, y, z] = block;
                 }
             }
@@ -128,6 +129,8 @@ public class Chunk : MonoBehaviour
                         vertexList.Add(blockPos + new Vector3(1, 1, 0));
                         vertexList.Add(blockPos + new Vector3(1, 0, 0));
                         numFaces++;
+
+                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -148,6 +151,8 @@ public class Chunk : MonoBehaviour
                         vertexList.Add(blockPos + new Vector3(0, 1, 1));
                         vertexList.Add(blockPos + new Vector3(0, 0, 1));
                         numFaces++;
+
+                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -168,6 +173,8 @@ public class Chunk : MonoBehaviour
                         vertexList.Add(blockPos + new Vector3(0, 1, 0));
                         vertexList.Add(blockPos + new Vector3(0, 0, 0));
                         numFaces++;
+
+                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -188,6 +195,8 @@ public class Chunk : MonoBehaviour
                         vertexList.Add(blockPos + new Vector3(1, 1, 1));
                         vertexList.Add(blockPos + new Vector3(1, 0, 1));
                         numFaces++;
+
+                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -208,6 +217,8 @@ public class Chunk : MonoBehaviour
                         vertexList.Add(blockPos + new Vector3(1, 0, 1));
                         vertexList.Add(blockPos + new Vector3(0, 0, 1));
                         numFaces++;
+
+                        uvList.AddRange(block.GetBottomUVs());
                     }
 
                     if (y == HEIGHT - 1)
@@ -225,6 +236,8 @@ public class Chunk : MonoBehaviour
                             vertexList.Add(blockPos + new Vector3(1, 1, 1));
                             vertexList.Add(blockPos + new Vector3(1, 1, 0));
                             numFaces++;
+
+                            uvList.AddRange(block.GetTopUVs());
                         }
                     }
 
@@ -241,9 +254,9 @@ public class Chunk : MonoBehaviour
                 }
             }
         }
-        fluidChunk.ApplyMesh(fluidVertices, fluidTriangles);
+        fluidChunk.ApplyMesh(fluidVertices, fluidTriangles, fluidUVs);
 
-        ApplyMesh(vertices, triangles);
+        ApplyMesh(vertices, triangles, UVs);
     }
 
     /// <summary>
@@ -251,11 +264,13 @@ public class Chunk : MonoBehaviour
     /// </summary>
     /// <param name="vertices"></param>
     /// <param name="triangles"></param>
-    private void ApplyMesh(List<Vector3> vertices, List<int> triangles)
+    private void ApplyMesh(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs)
     {
         mesh.vertices = vertices.ToArray();
 
         mesh.triangles = triangles.ToArray();
+
+        mesh.uv = uvs.ToArray();
 
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
@@ -321,8 +336,8 @@ public class Chunk : MonoBehaviour
         var idx = GetBlockIdx(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
         if (block != null) return false;
-        if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.5f)) return false;
-        blocks[idx.x, idx.y, idx.z] = new BlockOpaque(new Vector3Int(idx.x, idx.y, idx.z));
+        if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.45f)) return false;
+        blocks[idx.x, idx.y, idx.z] = new Glass(new Vector3Int(idx.x, idx.y, idx.z));
         MakeMesh();
         if (idx.x == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.left]?.MakeMesh();
         else if (idx.x == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.right]?.MakeMesh();

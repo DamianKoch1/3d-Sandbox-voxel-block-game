@@ -34,6 +34,9 @@ public class TerrainGenerator : MonoBehaviour
     [Range(0, 70)]
     public int waterLevel = 60;
 
+    [Range(2, 10)]
+    public int dirtLayerSize = 5;
+
     [Range(0, 10)]
     public int renderDistance = 5;
 
@@ -250,7 +253,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public Block GetBlock(Vector3 pos)
     {
-        var chunk = GetChunk(pos.x, pos.z);
+        var chunk = GetChunk(pos);
         if (!chunk) return null;
         return chunk.GetBlockByPos(pos);
     }
@@ -262,7 +265,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public bool DestroyBlock(Vector3 pos)
     {
-        var chunk = GetChunk(pos.x, pos.z);
+        var chunk = GetChunk(pos);
         if (!chunk) return false;
         return chunk.DestroyBlock(pos);
     }
@@ -276,7 +279,7 @@ public class TerrainGenerator : MonoBehaviour
     {
         if (pos.y <= 0) return false;
         if (pos.y >= Chunk.HEIGHT) return false;
-        var chunk = GetChunk(pos.x, pos.z);
+        var chunk = GetChunk(pos);
         if (!chunk) return false;
         return chunk.PlaceBlock(pos);
     }

@@ -153,7 +153,7 @@ public class Player : MonoBehaviour
         if (placeCD > 0) return false;
         if (TerrainGenerator.Instance.PlaceBlock(interactHit.point + interactHit.normal * 0.01f))
         {
-            placeCD = 0.1f;
+            placeCD = 0.2f;
             return true;
         }
         return false;
@@ -165,7 +165,7 @@ public class Player : MonoBehaviour
         if (targetBlock == null) return false;
         if (TerrainGenerator.Instance.DestroyBlock(interactHit.point - interactHit.normal * 0.01f))
         {
-            breakCD = 0.1f;
+            breakCD = 0.2f;
             return true;
         }
         return false;
