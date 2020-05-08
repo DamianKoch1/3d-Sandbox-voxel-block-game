@@ -1,5 +1,7 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public abstract class Block
@@ -7,6 +9,8 @@ public abstract class Block
     public const int TILESET_DIMENSIONS = 10;
 
     public Vector3Int pos;
+
+    public BlockType type;
 
     public Block(Vector3Int _pos)
     {
@@ -60,15 +64,38 @@ public abstract class Block
     public abstract bool DrawFaceNextTo(Block neighbour);
 
     public virtual void OnPlaced()
-    { }
+    {
+        OnBlockUpdate();
+        UpdateNeighbours();
+    }
 
     public virtual void OnDestroyed()
+    {
+        UpdateNeighbours();
+    }
+
+    public virtual void OnBlockUpdate()
     { }
 
-    public virtual void OnUsed()
-    { }
+    public List<Block> GetNeighbours()
+    {
+        List<Block> neighbours = new List<Block>();
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.left));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.right));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.up));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.down));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + new Vector3Int(0, 0, 1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + new Vector3Int(0, 0, -1)));
+        return neighbours;
+    }
 
-
+    public void UpdateNeighbours()
+    {
+        foreach (var block in GetNeighbours())
+        {
+            block?.OnBlockUpdate();
+        }
+    }
 }
 
 public abstract class BlockOpaque : Block
@@ -102,6 +129,8 @@ public abstract class Fluid : Block
 {
     public float fallSpeed = 3;
 
+    protected float tickInterval = 0.5f;
+
     public Fluid(Vector3Int _pos) : base(_pos)
     { }
 
@@ -115,5 +144,49 @@ public abstract class Fluid : Block
         return new Vector2Int(5, 0);
     }
 
+    public override void OnBlockUpdate()
+    {
+        base.OnBlockUpdate();
+        TryFlow();
+    }
+
+    protected async void TryFlow()
+    {
+        await Task.Delay((int)(tickInterval * 1000));
+
+        var flowPos = pos + Vector3Int.down;
+        var blockBelow = TerrainGenerator.Instance.GetBlock(flowPos);
+        if (blockBelow == null)
+        {
+            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+            return;
+        }
+        else if (blockBelow is Fluid) return;
+
+        flowPos = pos + Vector3Int.left;
+        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        {
+            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+        }
+
+        flowPos = pos + Vector3Int.right;
+        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        {
+            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+        }
+
+
+        flowPos = pos + new Vector3Int(0, 0, 1);
+        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        {
+            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+        }
+
+        flowPos = pos + new Vector3Int(0, 0, -1);
+        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        {
+            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+        }
+    }
 }
 

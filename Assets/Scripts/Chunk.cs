@@ -231,17 +231,18 @@ public class Chunk : ChunkMesh
                     else
                     {
                         neighbour = blocks[x, y + 1, z];
-                        if (block.DrawFaceNextTo(neighbour))
-                        {
-                            //top
-                            vertexList.Add(blockPos + new Vector3(0, 1, 0));
-                            vertexList.Add(blockPos + new Vector3(0, 1, 1));
-                            vertexList.Add(blockPos + new Vector3(1, 1, 1));
-                            vertexList.Add(blockPos + new Vector3(1, 1, 0));
-                            numFaces++;
+                    }
 
-                            uvList.AddRange(block.GetTopUVs());
-                        }
+                    if (block.DrawFaceNextTo(neighbour))
+                    {
+                        //top
+                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
+                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
+                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
+                        numFaces++;
+
+                        uvList.AddRange(block.GetTopUVs());
                     }
 
                     int triangleIdx = vertexList.Count - numFaces * 4;
@@ -279,13 +280,15 @@ public class Chunk : ChunkMesh
     }
 
     /// <summary>
-    /// Get the block in this chunk at _pos
+    /// Get the block in this chunk at _pos, calculate the chunk of _pos before calling this to make sure _pos is in this chunk
     /// </summary>
-    /// <param name="_pos">position of block (world pos)</param>
+    /// <param name="_pos">position of block within this chunk (world pos)</param>
     /// <returns></returns>
     public Block GetBlockByPos(Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
+        if (idx.y < 0) return null;
+        if (idx.y >= HEIGHT) return null;
         return blocks[idx.x, idx.y, idx.z];
     }
 
@@ -299,6 +302,7 @@ public class Chunk : ChunkMesh
         var idx = GetBlockIdx(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
         if (block == null) return false;
+        blocks[idx.x, idx.y, idx.z].OnDestroyed();
         blocks[idx.x, idx.y, idx.z] = null;
         MakeMesh();
         if (idx.x == 0) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.left)?.MakeMesh();
@@ -309,25 +313,34 @@ public class Chunk : ChunkMesh
     }
 
     /// <summary>
-    /// Places default block at _pos, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
+    /// Places block of given type at _pos if possible, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
     /// </summary>
+    /// <param name="type">what block to place</param>
     /// <param name="_pos">where to place block (world pos)</param>
-    /// <returns></returns>
+    /// <returns>returns false if spot is blocked by player / occupied by solid block</returns>
     public bool PlaceBlock(BlockType type, Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
+        var blockPos = Vector3Int.FloorToInt(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
         if (!(block is Fluid))
         {
             if (block != null) return false;
         }
-        if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.45f)) return false;
-        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, idx);
+        if (Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return false;
+        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
+        blocks[idx.x, idx.y, idx.z].OnPlaced();
         MakeMesh();
         if (idx.x == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.left]?.MakeMesh();
         else if (idx.x == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.right]?.MakeMesh();
         if (idx.z == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.down]?.MakeMesh();
         else if (idx.z == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.up]?.MakeMesh();
         return true;
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireCube(new Vector3(pos.x, 0, pos.y) * SIZE + new Vector3(SIZE, HEIGHT, SIZE) * 0.5f, new Vector3(SIZE, HEIGHT, SIZE));
     }
 }

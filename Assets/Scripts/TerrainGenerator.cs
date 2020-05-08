@@ -17,16 +17,22 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
+    [SerializeField]
+    private Chunk chunkPrefab;
 
-    public Chunk chunkPrefab;
+    [SerializeField, Range(0.01f, 0.5f)]
+    private float meshBuildingInterval = 0.1f;
+
+    [SerializeField]
+    private bool unloadChunks;
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
-    [Range(0, 0.15f)]
-    public float frequency;
+    [SerializeField, Range(0, 0.15f)]
+    private float frequency;
 
-    [Range(0, 100)]
-    public int amplitude;
+    [SerializeField, Range(0, 100)]
+    private int amplitude;
 
     [Range(0, 100)]
     public int minSurfaceLevel = 50;
@@ -37,17 +43,20 @@ public class TerrainGenerator : MonoBehaviour
     [Range(2, 10)]
     public int dirtLayerSize = 5;
 
-    [Range(0, 10)]
-    public int renderDistance = 5;
+    [SerializeField, Range(0, 10)]
+    private int renderDistance = 5;
 
-    public bool useRandomSeed;
+    [SerializeField]
+    private bool useRandomSeed;
 
-    public float seed;
+    [SerializeField]
+    private float seed;
 
-    public float amplifierSeed;
+    [SerializeField]
+    private float detailSeel;
 
-    [Range(0, 0.15f)]
-    public float freq2;
+    [SerializeField, Range(0, 0.15f)]
+    private float detailFrequency;
 
     private Player player;
 
@@ -62,6 +71,7 @@ public class TerrainGenerator : MonoBehaviour
         playerChunkPos = GetChunk(player.transform.position).pos;
         dirtyChunks = new List<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
+        InvokeRepeating(nameof(RebuildDirtyChunks), 1, meshBuildingInterval);
     }
 
     /// <summary>
@@ -77,7 +87,6 @@ public class TerrainGenerator : MonoBehaviour
             AddChunk(playerChunkPos);
         }
         UpdateChunkVisibility();
-        RebuildDirtyChunks();
     }
 
     /// <summary>
@@ -89,10 +98,25 @@ public class TerrainGenerator : MonoBehaviour
         {
             if (Mathf.Abs(chunk.pos.x - playerChunkPos.x) <= renderDistance && Mathf.Abs(chunk.pos.y - playerChunkPos.y) <= renderDistance)
             {
-                chunk.gameObject.SetActive(true);
-                continue;
+                if (!chunk.gameObject.activeSelf)
+                {
+                    chunk.gameObject.SetActive(true);
+                }
             }
-            chunk.gameObject.SetActive(false);
+            else if (!unloadChunks)
+            {
+                if (!chunk.gameObject.activeSelf)
+                {
+                    chunk.gameObject.SetActive(true);
+                }
+            }
+            else
+            {
+                if (chunk.gameObject.activeSelf)
+                {
+                    chunk.gameObject.SetActive(false);
+                }
+            }
         }
 
         for (int x = -renderDistance; x <= renderDistance; x++)
@@ -111,13 +135,10 @@ public class TerrainGenerator : MonoBehaviour
     private void RebuildDirtyChunks()
     {
         if (dirtyChunks.Count == 0) return;
-        foreach (var chunk in dirtyChunks)
-        {
-            chunk.MakeMesh();
-        }
-        dirtyChunks.Clear();
+        dirtyChunks[0].MakeMesh();
+        dirtyChunks.RemoveAt(0);
     }
-    
+
     /// <summary>
     /// Adds a chunk, marks itself and its neighbours dirty, use this when adding chunks at runtime
     /// </summary>
@@ -149,7 +170,7 @@ public class TerrainGenerator : MonoBehaviour
         if (useRandomSeed)
         {
             seed = Random.Range(0f, 10000f);
-            amplifierSeed = Random.Range(0f, 10000f);
+            detailSeel = Random.Range(0f, 10000f);
         }
 
         for (int x = -renderDistance; x <= renderDistance; x++)
@@ -215,7 +236,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public int PerlinNoise(float x, float z)
     {
-        return (int)(Mathf.PerlinNoise(x * freq2 + amplifierSeed, z * freq2 + amplifierSeed) * (Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude)) + minSurfaceLevel;
+        return (int)(Mathf.PerlinNoise(x * detailFrequency + detailSeel, z * detailFrequency + detailSeel) * (Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude)) + minSurfaceLevel;
     }
 
     /// <summary>
@@ -277,8 +298,9 @@ public class TerrainGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Places default block at pos
+    /// Gets chunk pos is in and lets it place block of given type at pos
     /// </summary>
+    /// <param name="type">what block to place</param>
     /// <param name="pos">where to place the block</param>
     /// <returns></returns>
     public bool PlaceBlock(BlockType type, Vector3 pos)

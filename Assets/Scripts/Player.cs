@@ -30,7 +30,25 @@ public class Player : MonoBehaviour
 
     private Block targetBlock;
 
+    public Block TargetBlock
+    {
+        private set
+        {
+            targetBlock = value;
+            HighlightTarget();
+        }
+        get => targetBlock;
+    }
+
+    private LineRenderer lr;
+
     private RaycastHit interactHit;
+
+    [SerializeField]
+    private float maxPlaceCD = 0.2f;
+
+    [SerializeField]
+    private float maxBreakCD = 0.2f;
 
     float placeCD = 0;
 
@@ -42,12 +60,13 @@ public class Player : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
         cam = GetComponentInChildren<Camera>();
+        lr = GetComponent<LineRenderer>();
         motion = Vector3.zero;
         pitch = 0;
         yaw = 0;
         Cursor.lockState = CursorLockMode.Locked;
-
-        if (Physics.Raycast(transform.position - Vector3.up * 2, -Vector3.up, out var hit, Chunk.SIZE))
+        TargetBlock = null;
+        if (Physics.Raycast(transform.position - Vector3.up * 2, -Vector3.up, out var hit, Chunk.HEIGHT))
         {
             transform.position = hit.point + Vector3.up;
         }
@@ -80,17 +99,21 @@ public class Player : MonoBehaviour
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out interactHit, interactRange))
         {
-            targetBlock = TerrainGenerator.Instance.GetBlock(interactHit.point - interactHit.normal * 0.01f);
+            TargetBlock = TerrainGenerator.Instance.GetBlock(interactHit.point - interactHit.normal * 0.01f);
 
             if (Input.GetButton("Fire1"))
             {
-                DestroyBlock();
+                Attack();
             }
 
             if (Input.GetButton("Fire2"))
             {
-                PlaceBlock();
+                Use();
             }
+        }
+        else
+        {
+            TargetBlock = null;
         }
     }
 
@@ -128,14 +151,7 @@ public class Player : MonoBehaviour
         }
         else if (fluid != null)
         {
-            if (Input.GetButton("Jump"))
-            {
-                motion.y = fluid.fallSpeed;
-            }
-            else if (motion.y > -fluid.fallSpeed)
-            {
-                motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
-            }
+            Swim();
         }
         else
         {
@@ -148,12 +164,41 @@ public class Player : MonoBehaviour
         controller.Move((motion.x * transform.right + motion.y * Vector3.up + motion.z * transform.forward) * Time.deltaTime);
     }
 
+    private void Swim()
+    {
+        if (Input.GetButton("Jump"))
+        {
+            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 2 * gravity * Time.deltaTime); ;
+        }
+        else if (motion.y > -fluid.fallSpeed)
+        {
+            motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
+        }
+    }
+
+    private void Attack()
+    {
+        if (targetBlock == null) return;
+        DestroyBlock();
+    }
+
+    private void Use()
+    {
+        if (targetBlock == null) return;
+        if (targetBlock is IUseable)
+        {
+            ((IUseable)targetBlock).OnUsed();
+            return;
+        }
+        PlaceBlock();
+    }
+
     private bool PlaceBlock()
     {
         if (placeCD > 0) return false;
-        if (TerrainGenerator.Instance.PlaceBlock(BlockType.glass, interactHit.point + interactHit.normal * 0.01f))
+        if (TerrainGenerator.Instance.PlaceBlock(Hotbar.Instance.GetSelected(), interactHit.point + interactHit.normal * 0.01f))
         {
-            placeCD = 0.2f;
+            placeCD = maxPlaceCD;
             return true;
         }
         return false;
@@ -165,17 +210,66 @@ public class Player : MonoBehaviour
         if (targetBlock == null) return false;
         if (TerrainGenerator.Instance.DestroyBlock(interactHit.point - interactHit.normal * 0.01f))
         {
-            breakCD = 0.2f;
+            breakCD = maxBreakCD;
             return true;
         }
         return false;
+    }
+
+    private void HighlightTarget()
+    {
+        if (targetBlock == null)
+        {
+            lr.positionCount = 0;
+        }
+        else
+        {
+            lr.positionCount = 4;
+            Vector3Int dir1 = Vector3Int.zero;
+            Vector3Int dir2 = Vector3Int.zero;
+
+            //fixing float rounding errors that would sometimes floor near whole floats one int too much down
+            var blockPos = Vector3Int.FloorToInt(interactHit.point + Vector3.one * 0.00001f);
+
+            if (interactHit.normal.x != 0)
+            {
+                dir1 = new Vector3Int(0, 0, 1);
+                dir2 = Vector3Int.up;
+            }
+            else if (interactHit.normal.y != 0)
+            {
+                dir1 = new Vector3Int(0, 0, 1);
+                dir2 = Vector3Int.right;
+            }
+            else if (interactHit.normal.z != 0)
+            {
+                dir1 = Vector3Int.up;
+                dir2 = Vector3Int.right;
+            }
+
+            lr.SetPositions(new Vector3[]
+            {
+                blockPos,
+                blockPos + dir1,
+                blockPos + dir1 + dir2,
+                blockPos + dir2
+            });
+        }
     }
 
     private void OnDrawGizmosSelected()
     {
         if (!cam) cam = GetComponentInChildren<Camera>();
         Gizmos.color = Color.blue;
-        Gizmos.DrawLine(cam.transform.position, cam.transform.position + cam.transform.forward * interactRange);
+        if (targetBlock != null)
+        {
+            Gizmos.DrawLine(cam.transform.position, interactHit.point);
+            Gizmos.DrawWireCube(targetBlock.pos + Vector3.one * 0.5f, Vector3.one);
+        }
+        else
+        {
+            Gizmos.DrawLine(cam.transform.position, cam.transform.position + cam.transform.forward * interactRange);
+        }
     }
 
 
