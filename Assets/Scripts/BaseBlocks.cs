@@ -6,6 +6,9 @@ using UnityEngine;
 
 public abstract class Block
 {
+    /// <summary>
+    /// How many 16px block textures there are in a row / column
+    /// </summary>
     public const int TILESET_DIMENSIONS = 10;
 
     public Vector3Int pos;
@@ -17,19 +20,31 @@ public abstract class Block
         pos = _pos;
     }
 
+    /// <summary>
+    /// Where on the tileset this blocks default (top) texture starts (bottom left to top right, 1 unit = 16px)
+    /// </summary>
+    /// <returns></returns>
     protected abstract Vector2Int GetTilesetPos();
 
+    /// <summary>
+    /// Where on the tileset this blocks side texture starts (bottom left to top right, 1 unit = 16px)
+    /// </summary>
+    /// <returns></returns>
     protected virtual Vector2Int GetSideTilesetPos()
     {
         return GetTilesetPos();
     }
 
+    /// <summary>
+    /// Where on the tileset this blocks bottom texture starts (bottom left to top right, 1 unit = 16px)
+    /// </summary>
+    /// <returns></returns>
     protected virtual Vector2Int GetBottomTilesetPos()
     {
         return GetTilesetPos();
     }
 
-    private Vector2[] GetUVs(Vector2Int offset)
+    private static Vector2[] GetUVs(Vector2Int offset)
     {
         return new Vector2[]
         {

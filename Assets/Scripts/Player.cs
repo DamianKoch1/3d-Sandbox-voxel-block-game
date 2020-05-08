@@ -106,9 +106,13 @@ public class Player : MonoBehaviour
                 Attack();
             }
 
-            if (Input.GetButton("Fire2"))
+            if (Input.GetButtonDown("Fire2"))
             {
                 Use();
+            }
+            else if (Input.GetButton("Fire2"))
+            {
+                PlaceBlock();
             }
         }
         else
@@ -155,7 +159,7 @@ public class Player : MonoBehaviour
         }
         else
         {
-            motion.y -= gravity * Time.deltaTime;
+            motion.y = controller.velocity.y - gravity * Time.deltaTime;
         }
 
         transform.eulerAngles = new Vector3(0, yaw, 0);
@@ -168,11 +172,11 @@ public class Player : MonoBehaviour
     {
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 2 * gravity * Time.deltaTime); ;
+            motion.y = Mathf.Min(fluid.fallSpeed, controller.velocity.y + 4 * gravity * Time.deltaTime); ;
         }
         else if (motion.y > -fluid.fallSpeed)
         {
-            motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
+            motion.y = Mathf.Max(-fluid.fallSpeed, controller.velocity.y - gravity * Time.deltaTime);
         }
     }
 
@@ -184,18 +188,21 @@ public class Player : MonoBehaviour
 
     private void Use()
     {
+        if (placeCD > 0) return;
         if (targetBlock == null) return;
-        if (targetBlock is IUseable)
-        {
-            ((IUseable)targetBlock).OnUsed();
-            return;
-        }
-        PlaceBlock();
+        if (!(targetBlock is IUseable)) return;
+        if (Input.GetButton("Fire3")) return;
+        ((IUseable)targetBlock).OnUsed();
+        placeCD = maxPlaceCD;
     }
 
     private bool PlaceBlock()
     {
         if (placeCD > 0) return false;
+        if (targetBlock is IUseable)
+        {
+            if (!Input.GetButton("Fire3")) return false;
+        }
         if (TerrainGenerator.Instance.PlaceBlock(Hotbar.Instance.GetSelected(), interactHit.point + interactHit.normal * 0.01f))
         {
             placeCD = maxPlaceCD;
@@ -216,6 +223,9 @@ public class Player : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Highlights targeted block face using a line renderer
+    /// </summary>
     private void HighlightTarget()
     {
         if (targetBlock == null)
@@ -271,6 +281,4 @@ public class Player : MonoBehaviour
             Gizmos.DrawLine(cam.transform.position, cam.transform.position + cam.transform.forward * interactRange);
         }
     }
-
-
 }

@@ -37,23 +37,25 @@ public class Chunk : ChunkMesh
     public virtual void Generate()
     {
         blocks = new Block[SIZE, HEIGHT, SIZE];
+        var tg = TerrainGenerator.Instance;
         for (int x = 0; x < SIZE; x++)
         {
             for (int z = 0; z < SIZE; z++)
             {
-                var localSurfaceLevel = TerrainGenerator.Instance.PerlinNoise(x + pos.x * 16, z + pos.y * 16);
-                for (int y = 0; y <= Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
+                var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
+                for (int y = 0; y <= Mathf.Max(localSurfaceLevel, tg.waterLevel); y++)
                 {
                     Block block = null;
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
+                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) * (1 - (y / (localSurfaceLevel - tg.minCaveSurfaceDistance))) > tg.caveNoiseThreshold) continue;
                     else if (y == localSurfaceLevel)
                     {
-                        if (y >= TerrainGenerator.Instance.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);
+                        if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);
                         else block = BlockFactory.Create(BlockType.dirt, blockPos);
                     }
-                    else if (y > localSurfaceLevel - TerrainGenerator.Instance.dirtLayerSize) block = BlockFactory.Create(BlockType.dirt, blockPos);
+                    else if (y > localSurfaceLevel - tg.dirtLayerSize) block = BlockFactory.Create(BlockType.dirt, blockPos);
                     else if (y > 0) block = BlockFactory.Create(BlockType.stone, blockPos);
                     blocks[x, y, z] = block;
                 }
@@ -300,16 +302,84 @@ public class Chunk : ChunkMesh
     public bool DestroyBlock(Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
-        var block = blocks[idx.x, idx.y, idx.z];
-        if (block == null) return false;
+        if (!IsValidBlockIdx(idx)) return false;
         blocks[idx.x, idx.y, idx.z].OnDestroyed();
         blocks[idx.x, idx.y, idx.z] = null;
         MakeMesh();
-        if (idx.x == 0) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.left)?.MakeMesh();
-        else if (idx.x == SIZE - 1) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.right)?.MakeMesh();
-        if (idx.z == 0) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.down)?.MakeMesh();
-        else if (idx.z == SIZE - 1) TerrainGenerator.Instance.GetChunkByIdx(pos + Vector2Int.up)?.MakeMesh();
+        UpdateAdjacentChunks(idx);
         return true;
+    }
+
+    /// <summary>
+    /// Does this chunk have a block at given index?
+    /// </summary>
+    /// <param name="idx">local index of block</param>
+    /// <returns></returns>
+    private bool IsValidBlockIdx(Vector3Int idx)
+    {
+        return blocks[idx.x, idx.y, idx.z] != null;
+    }
+
+    /// <summary>
+    /// Destroys block at _pos, does not rebuild meshes but stores affected chunks, useful for destroying multiple blocks at once
+    /// </summary>
+    /// <param name="_pos">position of block to destroy (world pos)</param>
+    /// <param name="affectedChunks">hashset to store affected chunks in</param>
+    /// <param name="includeFluids">determines whether fluids should get destroyed aswell as solid blocks</param>
+    /// <returns></returns>
+    public bool DestroyBlockSilent(Vector3 _pos, HashSet<Chunk> affectedChunks, bool includeFluids)
+    {
+        var idx = GetBlockIdx(_pos);
+        if (!IsValidBlockIdx(idx)) return false;
+        if (!includeFluids)
+        {
+            if (blocks[idx.x, idx.y, idx.z] is Fluid) return false;
+        }
+        blocks[idx.x, idx.y, idx.z].OnDestroyed();
+        blocks[idx.x, idx.y, idx.z] = null;
+        affectedChunks.Add(this);
+        var tg = TerrainGenerator.Instance;
+        if (idx.x == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
+        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
+        if (idx.z == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
+        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
+        return true;
+    }
+
+    /// <summary>
+    /// Places block of given type at _pos if possible, does not rebuild meshes but stores affected chunks, useful for placing multiple blocks at once
+    /// </summary>
+    /// <param name="type">what block to place</param>
+    /// <param name="_pos">where to place block (world pos)</param>
+    /// <param name="affectedChunks">hashset to store affected chunks in</param>
+    /// <returns>returns false if spot is blocked by player / occupied by solid block</returns>
+    public bool PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
+    {
+        var idx = GetBlockIdx(_pos);
+        var blockPos = Vector3Int.FloorToInt(_pos);
+        var block = blocks[idx.x, idx.y, idx.z];
+        if (!(block is Fluid))
+        {
+            if (block != null) return false;
+        }
+        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
+        blocks[idx.x, idx.y, idx.z].OnPlaced();
+        MakeMesh();
+        UpdateAdjacentChunks(idx);
+        return true;
+    }
+
+    /// <summary>
+    /// If blockIdx is at borders of this chunk, rebuild the mesh of adjacent ones to it
+    /// </summary>
+    /// <param name="blockIdx">index of block that was updated</param>
+    private void UpdateAdjacentChunks(Vector3Int blockIdx)
+    {
+        var tg = TerrainGenerator.Instance;
+        if (blockIdx.x == 0)                tg.GetChunkByIdx(pos + Vector2Int.left)?.MakeMesh();
+        else if (blockIdx.x == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.right)?.MakeMesh();
+        if (blockIdx.z == 0)                tg.GetChunkByIdx(pos + Vector2Int.down)?.MakeMesh();
+        else if (blockIdx.z == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.up)?.MakeMesh();
     }
 
     /// <summary>
@@ -331,10 +401,7 @@ public class Chunk : ChunkMesh
         blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
         blocks[idx.x, idx.y, idx.z].OnPlaced();
         MakeMesh();
-        if (idx.x == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.left]?.MakeMesh();
-        else if (idx.x == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.right]?.MakeMesh();
-        if (idx.z == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.down]?.MakeMesh();
-        else if (idx.z == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.up]?.MakeMesh();
+        UpdateAdjacentChunks(idx);
         return true;
     }
 

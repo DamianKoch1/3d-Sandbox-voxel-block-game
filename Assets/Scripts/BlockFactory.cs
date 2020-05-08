@@ -20,6 +20,8 @@ public class BlockFactory : MonoBehaviour
                 return new Water(pos);
             case BlockType.glass:
                 return new Glass(pos);
+            case BlockType.tnt:
+                return new TNT(pos);
         }
         return null;
     }
@@ -38,4 +40,5 @@ public enum BlockType
     bottomStone,
     water,
     glass,
+    tnt,
 }

@@ -23,16 +23,28 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField, Range(0.01f, 0.5f)]
     private float meshBuildingInterval = 0.1f;
 
-    [SerializeField]
+    [SerializeField, Tooltip("Should far chunks get unloaded?")]
     private bool unloadChunks;
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
-    [SerializeField, Range(0, 0.15f)]
-    private float frequency;
+    [SerializeField]
+    private Noise shapeNoise;
 
-    [SerializeField, Range(0, 100)]
-    private int amplitude;
+    [SerializeField]
+    private Noise detailNoise;
+
+    [SerializeField]
+    private Noise caveShapeNoise;
+
+    [SerializeField]
+    private Noise caveDetailNoise;
+
+    [Range(0, 1), Tooltip("Carves a cave if CaveNoise at position is above this")]
+    public float caveNoiseThreshold = 0.8f;
+
+    [Tooltip("How far below the surface caves start to generate")]
+    public int minCaveSurfaceDistance = 10;
 
     [Range(0, 100)]
     public int minSurfaceLevel = 50;
@@ -49,15 +61,6 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField]
     private bool useRandomSeed;
 
-    [SerializeField]
-    private float seed;
-
-    [SerializeField]
-    private float detailSeel;
-
-    [SerializeField, Range(0, 0.15f)]
-    private float detailFrequency;
-
     private Player player;
 
     public Vector2Int playerChunkPos;
@@ -71,7 +74,7 @@ public class TerrainGenerator : MonoBehaviour
         playerChunkPos = GetChunk(player.transform.position).pos;
         dirtyChunks = new List<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
-        InvokeRepeating(nameof(RebuildDirtyChunks), 1, meshBuildingInterval);
+        InvokeRepeating(nameof(RebuildDirtyChunk), 1, meshBuildingInterval);
     }
 
     /// <summary>
@@ -132,7 +135,10 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
-    private void RebuildDirtyChunks()
+    /// <summary>
+    /// Builds the mesh for the oldest dirty chunk and removes it from the dirty list
+    /// </summary>
+    private void RebuildDirtyChunk()
     {
         if (dirtyChunks.Count == 0) return;
         dirtyChunks[0].MakeMesh();
@@ -153,7 +159,11 @@ public class TerrainGenerator : MonoBehaviour
         MarkDirty(GetChunkByIdx(_idx + Vector2Int.down));
     }
 
-    private void MarkDirty(Chunk c)
+    /// <summary>
+    /// Queues a chunk for a mesh rebuild
+    /// </summary>
+    /// <param name="c"></param>
+    public void MarkDirty(Chunk c)
     {
         if (c == null) return;
         if (dirtyChunks.Contains(c)) return;
@@ -169,8 +179,10 @@ public class TerrainGenerator : MonoBehaviour
 
         if (useRandomSeed)
         {
-            seed = Random.Range(0f, 10000f);
-            detailSeel = Random.Range(0f, 10000f);
+            shapeNoise.RandomizeSeed();
+            detailNoise.RandomizeSeed();
+            caveShapeNoise.RandomizeSeed();
+            caveDetailNoise.RandomizeSeed();
         }
 
         for (int x = -renderDistance; x <= renderDistance; x++)
@@ -234,9 +246,28 @@ public class TerrainGenerator : MonoBehaviour
     /// <param name="x"></param>
     /// <param name="z"></param>
     /// <returns></returns>
-    public int PerlinNoise(float x, float z)
+    public int SurfaceNoise(float x, float z)
     {
-        return (int)(Mathf.PerlinNoise(x * detailFrequency + detailSeel, z * detailFrequency + detailSeel) * (Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude)) + minSurfaceLevel;
+        return (int)Mathf.Min(detailNoise.GetValue(x, z) * (shapeNoise.GetValue(x, z)) + minSurfaceLevel, Chunk.HEIGHT - 1);
+    }
+
+    /// <summary>
+    /// Returns a "noise" for (x, y, z), needs a better noise library since this is mirrored around x = y = z and heavily weighted around 0.5f
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="z"></param>
+    /// <returns></returns>
+    public float CaveNoise(float x, float y, float z)
+    {
+        float retVal = caveShapeNoise.GetValue(x, y) * caveDetailNoise.GetValue(x, y);
+        retVal += caveShapeNoise.GetValue(y, z) * caveDetailNoise.GetValue(y, z);
+        retVal += caveShapeNoise.GetValue(x, z) * caveDetailNoise.GetValue(x, z);
+        retVal += caveShapeNoise.GetValue(y, x) * caveDetailNoise.GetValue(y, x);
+        retVal += caveShapeNoise.GetValue(z, y) * caveDetailNoise.GetValue(z, y);
+        retVal += caveShapeNoise.GetValue(z, x) * caveDetailNoise.GetValue(z, x);
+        retVal /= 6f;
+        return retVal / caveShapeNoise.amplitude / caveDetailNoise.amplitude;
     }
 
     /// <summary>
@@ -298,6 +329,27 @@ public class TerrainGenerator : MonoBehaviour
     }
 
     /// <summary>
+    /// Remove blocks at each position, rebuilds mesh of affected chunks only when finished
+    /// </summary>
+    /// <param name="positions">positions of block to destroy (world pos)</param>
+    /// <returns></returns>
+    public void DestroyBlocks(List<Vector3> positions, bool includeFluids = false)
+    {
+        HashSet<Chunk> affectedChunks = new HashSet<Chunk>();
+        foreach (var pos in positions)
+        {
+            var chunk = GetChunk(pos);
+            if (!chunk) continue;
+            chunk.DestroyBlockSilent(pos, affectedChunks, includeFluids);
+        }
+
+        foreach (var chunk in affectedChunks)
+        {
+            chunk.MakeMesh();
+        }
+    }
+
+    /// <summary>
     /// Gets chunk pos is in and lets it place block of given type at pos
     /// </summary>
     /// <param name="type">what block to place</param>
@@ -311,4 +363,27 @@ public class TerrainGenerator : MonoBehaviour
         if (!chunk) return false;
         return chunk.PlaceBlock(type, pos);
     }
+}
+
+[System.Serializable]
+public class Noise
+{
+    public float seed;
+
+    public void RandomizeSeed()
+    {
+        seed = Random.Range(0f, 100000f);
+    }
+
+    [Range(0, 0.15f)]
+    public float frequency;
+
+    [Range(1, 50)]
+    public float amplitude;
+
+    public float GetValue(float x, float z)
+    {
+        return Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude;
+    }
+
 }
