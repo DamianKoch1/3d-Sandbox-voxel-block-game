@@ -46,9 +46,6 @@ public class TerrainGenerator : MonoBehaviour
 
     public float amplifierSeed;
 
-    [Range(0, 100)]
-    public float amp2;
-
     [Range(0, 0.15f)]
     public float freq2;
 
@@ -284,12 +281,12 @@ public class TerrainGenerator : MonoBehaviour
     /// </summary>
     /// <param name="pos">where to place the block</param>
     /// <returns></returns>
-    public bool PlaceBlock(Vector3 pos)
+    public bool PlaceBlock(BlockType type, Vector3 pos)
     {
         if (pos.y <= 0) return false;
         if (pos.y >= Chunk.HEIGHT) return false;
         var chunk = GetChunk(pos);
         if (!chunk) return false;
-        return chunk.PlaceBlock(pos);
+        return chunk.PlaceBlock(type, pos);
     }
 }

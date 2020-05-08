@@ -2,37 +2,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Chunk : MonoBehaviour
+public class Chunk : ChunkMesh
 {
     public const int SIZE = 16;
 
     public const int HEIGHT = 128;
 
 
-
     public Vector2Int pos;
 
     public Block[,,] blocks;
 
-    private Mesh mesh;
+    [SerializeField]
+    private ChunkMesh fluidMesh;
 
-    private MeshRenderer mr;
-
-    private MeshFilter mf;
-
-    private MeshCollider mc;
-
-    private FluidChunk fluidChunk;
+    [SerializeField]
+    private ChunkMesh transparentMesh;
 
 
     public void Initialize(Vector2Int _pos)
     {
+        Initialize();
         pos = _pos;
-        mr = GetComponent<MeshRenderer>();
-        mf = GetComponent<MeshFilter>();
-        mc = GetComponent<MeshCollider>();
-        fluidChunk = GetComponentInChildren<FluidChunk>();
-        fluidChunk.Initialize();
+        fluidMesh.Initialize();
+        transparentMesh.Initialize();
         transform.position = new Vector3(pos.x * SIZE, 0, pos.y * SIZE);
         gameObject.name = "Chunk " + pos;
         Generate();
@@ -52,15 +45,16 @@ public class Chunk : MonoBehaviour
                 for (int y = 0; y <= Mathf.Max(localSurfaceLevel, TerrainGenerator.Instance.waterLevel); y++)
                 {
                     Block block = null;
-                    if (y == 0) block = new BottomStone(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                    else if (y > localSurfaceLevel) block = new Water(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                    var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
+                    if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
+                    else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
                     else if (y == localSurfaceLevel)
                     {
-                        if (y >= TerrainGenerator.Instance.waterLevel) block = new Grass(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                        else block = new Dirt(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                        if (y >= TerrainGenerator.Instance.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);
+                        else block = BlockFactory.Create(BlockType.dirt, blockPos);
                     }
-                    else if (y > localSurfaceLevel - TerrainGenerator.Instance.dirtLayerSize) block = new Dirt(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
-                    else if (y > 0) block = new Stone(new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE));
+                    else if (y > localSurfaceLevel - TerrainGenerator.Instance.dirtLayerSize) block = BlockFactory.Create(BlockType.dirt, blockPos);
+                    else if (y > 0) block = BlockFactory.Create(BlockType.stone, blockPos);
                     blocks[x, y, z] = block;
                 }
             }
@@ -72,7 +66,6 @@ public class Chunk : MonoBehaviour
     /// </summary>
     public virtual void MakeMesh()
     {
-        mesh = new Mesh();
         mesh.Clear();
 
         List<Vector3> vertices = new List<Vector3>();
@@ -82,6 +75,10 @@ public class Chunk : MonoBehaviour
         List<Vector3> fluidVertices = new List<Vector3>();
         List<int> fluidTriangles = new List<int>();
         List<Vector2> fluidUVs = new List<Vector2>();
+
+        List<Vector3> transparentVertices = new List<Vector3>();
+        List<int> transparentTriangles = new List<int>();
+        List<Vector2> transparentUVs = new List<Vector2>();
 
         List<Vector3> vertexList = vertices;
         List<int> triList = triangles;
@@ -100,6 +97,12 @@ public class Chunk : MonoBehaviour
                         vertexList = fluidVertices;
                         triList = fluidTriangles;
                         uvList = fluidUVs;
+                    }
+                    else if (block is BlockTransparent)
+                    {
+                        vertexList = transparentVertices;
+                        triList = transparentTriangles;
+                        uvList = transparentUVs;
                     }
                     else
                     {
@@ -254,32 +257,11 @@ public class Chunk : MonoBehaviour
                 }
             }
         }
-        fluidChunk.ApplyMesh(fluidVertices, fluidTriangles, fluidUVs);
+        fluidMesh.ApplyMesh(fluidVertices, fluidTriangles, fluidUVs);
+
+        transparentMesh.ApplyMesh(transparentVertices, transparentTriangles, transparentUVs);
 
         ApplyMesh(vertices, triangles, UVs);
-    }
-
-    /// <summary>
-    /// Builds mesh from vertices / triangles, applies it to collider / filter
-    /// </summary>
-    /// <param name="vertices"></param>
-    /// <param name="triangles"></param>
-    private void ApplyMesh(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs)
-    {
-        mesh.vertices = vertices.ToArray();
-
-        mesh.triangles = triangles.ToArray();
-
-        mesh.uv = uvs.ToArray();
-
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
-        mesh.Optimize();
-
-        mf.mesh = mesh;
-
-        mc.sharedMesh = null;
-        mc.sharedMesh = mesh;
     }
 
     /// <summary>
@@ -331,13 +313,16 @@ public class Chunk : MonoBehaviour
     /// </summary>
     /// <param name="_pos">where to place block (world pos)</param>
     /// <returns></returns>
-    public bool PlaceBlock(Vector3 _pos)
+    public bool PlaceBlock(BlockType type, Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
-        if (block != null) return false;
+        if (!(block is Fluid))
+        {
+            if (block != null) return false;
+        }
         if (Physics.CheckBox(new Vector3(idx.x, idx.y, idx.z) + Vector3.one * 0.5f, Vector3.one * 0.45f)) return false;
-        blocks[idx.x, idx.y, idx.z] = new Glass(new Vector3Int(idx.x, idx.y, idx.z));
+        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, idx);
         MakeMesh();
         if (idx.x == 0) TerrainGenerator.Instance.chunks[pos + Vector2Int.left]?.MakeMesh();
         else if (idx.x == SIZE - 1) TerrainGenerator.Instance.chunks[pos + Vector2Int.right]?.MakeMesh();

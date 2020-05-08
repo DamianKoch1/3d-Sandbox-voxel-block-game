@@ -58,6 +58,17 @@ public abstract class Block
     /// <param name="neighbour">neighbour block</param>
     /// <returns></returns>
     public abstract bool DrawFaceNextTo(Block neighbour);
+
+    public virtual void OnPlaced()
+    { }
+
+    public virtual void OnDestroyed()
+    { }
+
+    public virtual void OnUsed()
+    { }
+
+
 }
 
 public abstract class BlockOpaque : Block

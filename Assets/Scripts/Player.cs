@@ -151,7 +151,7 @@ public class Player : MonoBehaviour
     private bool PlaceBlock()
     {
         if (placeCD > 0) return false;
-        if (TerrainGenerator.Instance.PlaceBlock(interactHit.point + interactHit.normal * 0.01f))
+        if (TerrainGenerator.Instance.PlaceBlock(BlockType.glass, interactHit.point + interactHit.normal * 0.01f))
         {
             placeCD = 0.2f;
             return true;

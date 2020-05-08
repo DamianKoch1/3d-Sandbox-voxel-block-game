@@ -81,6 +81,6 @@ public class Glass : BlockTransparent
 
     protected override Vector2Int GetTilesetPos()
     {
-        return new Vector2Int(5, 0);
+        return new Vector2Int(6, 0);
     }
 }
