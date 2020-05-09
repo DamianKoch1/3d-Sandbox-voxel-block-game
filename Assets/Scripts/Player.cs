@@ -203,7 +203,7 @@ public class Player : MonoBehaviour
         {
             if (!Input.GetButton("Fire3")) return false;
         }
-        if (TerrainGenerator.Instance.PlaceBlock(Hotbar.Instance.GetSelected(), interactHit.point + interactHit.normal * 0.01f))
+        if (TerrainGenerator.Instance.PlaceBlock(Hotbar.Instance.GetSelected(), interactHit.point + interactHit.normal * 0.01f) != null)
         {
             placeCD = maxPlaceCD;
             return true;

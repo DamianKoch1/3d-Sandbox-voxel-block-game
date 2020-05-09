@@ -28,25 +28,9 @@ public class TerrainGenerator : MonoBehaviour
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
-    [SerializeField]
-    private Noise shapeNoise;
 
-    [SerializeField]
-    private Noise detailNoise;
-
-    [SerializeField]
-    private Noise caveShapeNoise;
-
-    [SerializeField]
-    private Noise caveDetailNoise;
-
-    [Range(0, 1), Tooltip("Carves a cave if CaveNoise at position is above this")]
-    public float caveNoiseThreshold = 0.8f;
-
-    [Tooltip("How far below the surface caves start to generate")]
-    public int minCaveSurfaceDistance = 10;
-
-    [Range(0, 100)]
+    
+    [Header("Surface settings"), Range(0, 100)]
     public int minSurfaceLevel = 50;
 
     [Range(0, 70)]
@@ -60,6 +44,35 @@ public class TerrainGenerator : MonoBehaviour
 
     [SerializeField]
     private bool useRandomSeed;
+
+    public Noise shapeNoise;
+
+    public Noise detailNoise;
+
+    [Header("Cave settings")]
+    public Noise caveShapeNoise;
+
+    public Noise caveDetailNoise;
+
+    [Range(0, 1), Tooltip("Carves a cave if CaveNoise at position is above this")]
+    public float caveNoiseThreshold = 0.8f;
+
+    [SerializeField, Range(0, 10), Tooltip("How far below the surface caves start to generate")]
+    public int minCaveSurfaceDistance = 10;
+
+    [Header("Preview settings")]
+    public bool showSurfaceNoiseSample;
+
+    [SerializeField, Range(100, 256)]
+    public int surfaceNoiseSampleSize = 128;
+
+    public bool showCaveNoiseSample;
+
+    [SerializeField, Range(100, 256)]
+    public int caveNoiseSampleSize = 128;
+
+    [SerializeField]
+    private int caveNoiseSampleZ = 0;
 
     private Player player;
 
@@ -355,13 +368,48 @@ public class TerrainGenerator : MonoBehaviour
     /// <param name="type">what block to place</param>
     /// <param name="pos">where to place the block</param>
     /// <returns></returns>
-    public bool PlaceBlock(BlockType type, Vector3 pos)
+    public Block PlaceBlock(BlockType type, Vector3 pos)
     {
-        if (pos.y <= 0) return false;
-        if (pos.y >= Chunk.HEIGHT) return false;
+        if (pos.y <= 0) return null;
+        if (pos.y >= Chunk.HEIGHT) return null;
         var chunk = GetChunk(pos);
-        if (!chunk) return false;
+        if (!chunk) return null;
         return chunk.PlaceBlock(type, pos);
+    }
+
+    public Texture2D GetSurfaceNoiseSampleTex()
+    {
+        Texture2D tex = new Texture2D(surfaceNoiseSampleSize, surfaceNoiseSampleSize, TextureFormat.RGB24, false);
+        for (int x = 0; x < surfaceNoiseSampleSize; x++)
+        {
+            for (int z = 0; z < surfaceNoiseSampleSize; z++)
+            {
+                float sample = (SurfaceNoise(x, z) - minSurfaceLevel) / shapeNoise.amplitude / detailNoise.amplitude;
+                tex.SetPixel(x, z, new Color(sample, sample, sample));
+            }
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    public Texture2D GetCaveNoiseSampleTex()
+    {
+        Texture2D tex = new Texture2D(caveNoiseSampleSize, caveNoiseSampleSize, TextureFormat.RGB24, false);
+        for (int x = 0; x < caveNoiseSampleSize; x++)
+        {
+            for (int y = 0; y < caveNoiseSampleSize; y++)
+            {
+                float sample = CaveNoise(x, y, caveNoiseSampleZ) * (1 - (y / (SurfaceNoise(x, caveNoiseSampleZ) + 1 - minCaveSurfaceDistance)));
+                var c = Color.black;
+                if (sample > caveNoiseThreshold)
+                {
+                    c = Color.white;
+                }
+                tex.SetPixel(x, y, c);
+            }
+        }
+        tex.Apply();
+        return tex;
     }
 }
 
@@ -370,16 +418,16 @@ public class Noise
 {
     public float seed;
 
-    public void RandomizeSeed()
-    {
-        seed = Random.Range(0f, 100000f);
-    }
-
     [Range(0, 0.15f)]
     public float frequency;
 
     [Range(1, 50)]
     public float amplitude;
+
+    public void RandomizeSeed()
+    {
+        seed = Random.Range(0f, 100000f);
+    }
 
     public float GetValue(float x, float z)
     {

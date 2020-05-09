@@ -49,7 +49,7 @@ public class Chunk : ChunkMesh
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
-                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) * (1 - (y / (localSurfaceLevel - tg.minCaveSurfaceDistance))) > tg.caveNoiseThreshold) continue;
+                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) * (1 - (y / (localSurfaceLevel + 1 - tg.minCaveSurfaceDistance))) > tg.caveNoiseThreshold) continue;
                     else if (y == localSurfaceLevel)
                     {
                         if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);
@@ -387,22 +387,23 @@ public class Chunk : ChunkMesh
     /// </summary>
     /// <param name="type">what block to place</param>
     /// <param name="_pos">where to place block (world pos)</param>
-    /// <returns>returns false if spot is blocked by player / occupied by solid block</returns>
-    public bool PlaceBlock(BlockType type, Vector3 _pos)
+    /// <returns>returns placed block, returns null if spot is blocked by player / occupied by solid block</returns>
+    public Block PlaceBlock(BlockType type, Vector3 _pos)
     {
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
         if (!(block is Fluid))
         {
-            if (block != null) return false;
+            if (block != null) return null;
         }
-        if (Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return false;
-        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
-        blocks[idx.x, idx.y, idx.z].OnPlaced();
+        if (Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
+        var newBlock = BlockFactory.Create(type, blockPos);
+        blocks[idx.x, idx.y, idx.z] = newBlock;
+        newBlock.OnPlaced();
         MakeMesh();
         UpdateAdjacentChunks(idx);
-        return true;
+        return newBlock;
     }
 
     private void OnDrawGizmosSelected()

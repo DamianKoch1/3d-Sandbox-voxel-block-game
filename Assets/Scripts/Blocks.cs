@@ -70,6 +70,8 @@ public class Water : Fluid
     public Water(Vector3Int _pos) : base(_pos)
     {
         type = BlockType.water;
+        fallSpeed = 3;
+        maxHorizontalFlow = 3;
     }
 
     protected override Vector2Int GetTilesetPos()

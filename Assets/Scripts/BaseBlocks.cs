@@ -78,17 +78,26 @@ public abstract class Block
     /// <returns></returns>
     public abstract bool DrawFaceNextTo(Block neighbour);
 
+    /// <summary>
+    /// Called when block is placed
+    /// </summary>
     public virtual void OnPlaced()
     {
         OnBlockUpdate();
         UpdateNeighbours();
     }
 
+    /// <summary>
+    /// Called before block is destroyed
+    /// </summary>
     public virtual void OnDestroyed()
     {
         UpdateNeighbours();
     }
 
+    /// <summary>
+    /// Usually called when placed / adjacent block is placed / destroyed
+    /// </summary>
     public virtual void OnBlockUpdate()
     { }
 
@@ -146,8 +155,13 @@ public abstract class Fluid : Block
 
     protected float tickInterval = 0.5f;
 
+    protected int currHorizontalFlow = 0;
+    protected int maxHorizontalFlow = 2;
+
     public Fluid(Vector3Int _pos) : base(_pos)
-    { }
+    {
+        currHorizontalFlow = 0;
+    }
 
     public override bool DrawFaceNextTo(Block neighbour)
     {
@@ -165,43 +179,53 @@ public abstract class Fluid : Block
         TryFlow();
     }
 
+    /// <summary>
+    /// Waits for tickInterval seconds, if block below is air flow to it, if it is solid flow to unoccupied sides until maxHorizontalFlow is reached
+    /// </summary>
     protected async void TryFlow()
     {
         await Task.Delay((int)(tickInterval * 1000));
 
-        var flowPos = pos + Vector3Int.down;
-        var blockBelow = TerrainGenerator.Instance.GetBlock(flowPos);
+        var blockBelow = TerrainGenerator.Instance.GetBlock(pos + Vector3Int.down);
         if (blockBelow == null)
         {
-            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+            TryFlowToDir(Vector3Int.down, 0);
             return;
         }
-        else if (blockBelow is Fluid) return;
-
-        flowPos = pos + Vector3Int.left;
-        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        else if (blockBelow is Fluid)
         {
-            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+            ((Fluid)blockBelow).currHorizontalFlow = 0;
+            return;
         }
+        else if (currHorizontalFlow >= maxHorizontalFlow) return;
 
-        flowPos = pos + Vector3Int.right;
-        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
+        TryFlowToDir(Vector3Int.left, currHorizontalFlow + 1);
+        TryFlowToDir(Vector3Int.right, currHorizontalFlow + 1);
+        TryFlowToDir(new Vector3Int(0, 0, 1), currHorizontalFlow + 1);
+        TryFlowToDir(new Vector3Int(0, 0, -1), currHorizontalFlow + 1);
+    }
+
+    /// <summary>
+    /// If pos + dir is free, places fluid there and sets its currHorizontalFlow to smaller value of either its own or newFlowAmount
+    /// </summary>
+    /// <param name="dir">direction to flow in</param>
+    /// <param name="newFlowAmount"></param>
+    protected void TryFlowToDir(Vector3Int dir, int newFlowAmount)
+    {
+        var newPos = pos + dir;
+        var block = TerrainGenerator.Instance.GetBlock(newPos);
+        if (block != null)
         {
-            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
+            if (block is Fluid)
+            {
+                var fluid = (Fluid)block;
+                fluid.currHorizontalFlow = Mathf.Min(fluid.currHorizontalFlow, newFlowAmount);
+            }
+            return;
         }
-
-
-        flowPos = pos + new Vector3Int(0, 0, 1);
-        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
-        {
-            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
-        }
-
-        flowPos = pos + new Vector3Int(0, 0, -1);
-        if (TerrainGenerator.Instance.GetBlock(flowPos) == null)
-        {
-            TerrainGenerator.Instance.PlaceBlock(type, flowPos);
-        }
+        var newFluid = TerrainGenerator.Instance.PlaceBlock(type, newPos);
+        if (!(newFluid is Fluid)) return;
+        ((Fluid)newFluid).currHorizontalFlow = newFlowAmount;
     }
 }
 
