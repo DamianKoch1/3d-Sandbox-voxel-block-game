@@ -56,7 +56,7 @@ public class Player : MonoBehaviour
 
     private Fluid fluid;
 
-    private void Start()
+    public void Initialize()
     {
         controller = GetComponent<CharacterController>();
         cam = GetComponentInChildren<Camera>();
@@ -74,14 +74,25 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
-        var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
-        if (footBlock is Fluid)
+        if (!controller) return;
+        var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position - Vector3.up * 0.05f);
+        if (headBlock is Fluid)
         {
-            fluid = (Fluid)footBlock;
+            fluid = (Fluid)headBlock;
+            RenderSettings.fog = true;
         }
         else
         {
-            fluid = null;
+            RenderSettings.fog = false;
+            var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
+            if (footBlock is Fluid)
+            {
+                fluid = (Fluid)footBlock;
+            }
+            else
+            {
+                fluid = null;
+            }
         }
 
         Movement();

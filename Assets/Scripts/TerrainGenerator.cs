@@ -84,6 +84,7 @@ public class TerrainGenerator : MonoBehaviour
     {
         Generate();
         player = FindObjectOfType<Player>();
+        player.Initialize();
         playerChunkPos = GetChunk(player.transform.position).pos;
         dirtyChunks = new List<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
