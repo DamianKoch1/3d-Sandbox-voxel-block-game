@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -74,26 +75,8 @@ public class Player : MonoBehaviour
     private void Update()
     {
         if (!controller) return;
-        var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position - Vector3.up * 0.05f);
-        if (headBlock is Fluid)
-        {
-            fluid = (Fluid)headBlock;
-            RenderSettings.fog = true;
-        }
-        else
-        {
-            RenderSettings.fog = false;
-            var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
-            if (footBlock is Fluid)
-            {
-                fluid = (Fluid)footBlock;
 
-            }
-            else
-            {
-                fluid = null;
-            }
-        }
+        CheckIfSwimming();
 
         Movement();
 
@@ -129,6 +112,30 @@ public class Player : MonoBehaviour
         else
         {
             TargetBlock = null;
+        }
+    }
+
+    private void CheckIfSwimming()
+    {
+        var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position - Vector3.up * 0.05f);
+        if (headBlock is Fluid)
+        {
+            fluid = (Fluid)headBlock;
+            RenderSettings.fog = true;
+        }
+        else
+        {
+            RenderSettings.fog = false;
+            var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
+            if (footBlock is Fluid)
+            {
+                fluid = (Fluid)footBlock;
+
+            }
+            else
+            {
+                fluid = null;
+            }
         }
     }
 
@@ -183,11 +190,11 @@ public class Player : MonoBehaviour
     {
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.fallSpeed, controller.velocity.y + 4 * gravity * Time.deltaTime); ;
+            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 4 * gravity * Time.deltaTime); ;
         }
         else if (motion.y > -fluid.fallSpeed)
         {
-            motion.y = Mathf.Max(-fluid.fallSpeed, controller.velocity.y - gravity * Time.deltaTime);
+            motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
         }
     }
 
