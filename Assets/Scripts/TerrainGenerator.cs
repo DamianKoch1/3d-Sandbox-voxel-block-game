@@ -96,7 +96,7 @@ public class TerrainGenerator : MonoBehaviour
     /// </summary>
     private void UpdatePlayerPos()
     {
-        var newChunkPos = new Vector2Int(Mathf.FloorToInt(player.transform.position.x / 16), Mathf.FloorToInt(player.transform.position.z / 16));
+        var newChunkPos = new Vector2Int(Mathf.FloorToInt(player.transform.position.x / Chunk.SIZE), Mathf.FloorToInt(player.transform.position.z / Chunk.SIZE));
         if (newChunkPos == playerChunkPos) return;
         playerChunkPos = newChunkPos;
         if (!chunks.ContainsKey(playerChunkPos))
@@ -302,7 +302,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public Chunk GetChunk(float x, float z)
     {
-        var chunkPos = new Vector2Int(Mathf.FloorToInt(x / 16), Mathf.FloorToInt(z / 16));
+        var chunkPos = new Vector2Int(Mathf.FloorToInt(x / Chunk.SIZE), Mathf.FloorToInt(z / Chunk.SIZE));
         if (!chunks.ContainsKey(chunkPos)) return null;
         return chunks[chunkPos];
     }
