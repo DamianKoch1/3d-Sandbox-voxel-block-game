@@ -23,10 +23,12 @@ public class TerrainGeneratorEditor : Editor
         }
 
         GUILayout.BeginHorizontal();
-        var style = new GUIStyle(GUI.skin.label);
-        style.alignment = TextAnchor.UpperCenter;
-        style.fixedWidth = 100;
-        style.fixedHeight = 100;
+        var style = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.UpperCenter,
+            fixedWidth = 100,
+            fixedHeight = 100
+        };
         if (tg.showSurfaceNoiseSample)  GUILayout.Label(tg.GetSurfaceNoiseSampleTex(), style);
         if (tg.showCaveNoiseSample)     GUILayout.Label(tg.GetCaveNoiseSampleTex(), style);
         GUILayout.EndHorizontal();

@@ -7,7 +7,6 @@ public class Player : MonoBehaviour
     CharacterController controller;
 
     public float gravity = 9.81f;
-    private float swimGravity = 0;
 
     public float speed;
 
@@ -88,6 +87,7 @@ public class Player : MonoBehaviour
             if (footBlock is Fluid)
             {
                 fluid = (Fluid)footBlock;
+
             }
             else
             {
@@ -153,7 +153,11 @@ public class Player : MonoBehaviour
         motion.x = input.x;
         motion.z = input.y;
 
-        if (controller.isGrounded)
+        if (fluid != null)
+        {
+            Swim();
+        }
+        else if (controller.isGrounded)
         {
             if (Input.GetButton("Jump"))
             {
@@ -163,10 +167,6 @@ public class Player : MonoBehaviour
             {
                 motion.y = 0;
             }
-        }
-        else if (fluid != null)
-        {
-            Swim();
         }
         else
         {
