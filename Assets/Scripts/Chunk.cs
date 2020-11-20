@@ -43,13 +43,18 @@ public class Chunk : ChunkMesh
             for (int z = 0; z < SIZE; z++)
             {
                 var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
-                for (int y = 0; y <= Mathf.Max(localSurfaceLevel, tg.waterLevel); y++)
+                for (int y = Mathf.Max(localSurfaceLevel, tg.waterLevel); y >= 0; y--)
                 {
                     Block block = null;
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
-                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) * (1 - (y / (localSurfaceLevel + 1 - tg.minCaveSurfaceDistance))) > tg.caveNoiseThreshold) continue;
+                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.caveNoiseThreshold)
+                    {
+                        var above = blocks[x, y + 1, z];
+                        if (above is Fluid) block = BlockFactory.Create(above.type, blockPos);
+                        else continue;
+                    }
                     else if (y == localSurfaceLevel)
                     {
                         if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);

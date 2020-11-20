@@ -400,7 +400,7 @@ public class TerrainGenerator : MonoBehaviour
         {
             for (int y = 0; y < caveNoiseSampleSize; y++)
             {
-                float sample = CaveNoise(x, y, caveNoiseSampleZ) * (1 - (y / (SurfaceNoise(x, caveNoiseSampleZ) + 1 - minCaveSurfaceDistance)));
+                float sample = CaveNoise(x, y, caveNoiseSampleZ);
                 var c = Color.black;
                 if (sample > caveNoiseThreshold)
                 {
