@@ -448,14 +448,14 @@ public class Noise
 
     public float GetValue(float x, float z)
     {
-        var retVal = (float)SNoise.Evaluate(x * frequency, z * frequency) * amplitude;
+        var retVal = SNoise.Evaluate(x * frequency, z * frequency) * amplitude;
         foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, z);
         return retVal;
     }
 
     public float GetValue(float x, float y, float z)
     {
-        var retVal = (float)SNoise.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude;
+        var retVal = SNoise.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude;
         foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, y, z);
         return retVal;
     }
@@ -472,9 +472,9 @@ public class Noise
         [SerializeField, Range(0, 10)]
         private float amplitude = 1;
 
-        public float GetValue(SimplexNoise n, float x, float z) => (float)(n.Evaluate(x * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
+        public float GetValue(SimplexNoise n, float x, float z) => (n.Evaluate(x * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
 
-        public float GetValue(SimplexNoise n, float x, float y, float z) => (float)(n.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
+        public float GetValue(SimplexNoise n, float x, float y, float z) => (n.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
     }
 
 }

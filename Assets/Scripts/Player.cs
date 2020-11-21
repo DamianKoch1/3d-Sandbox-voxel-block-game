@@ -190,11 +190,11 @@ public class Player : MonoBehaviour
     {
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 4 * gravity * Time.deltaTime);
+            motion.y = Mathf.Min(fluid.FallSpeed, motion.y + 4 * gravity * Time.deltaTime);
         }
         else 
         {
-            motion.y = Mathf.Lerp(motion.y, -fluid.fallSpeed, 0.01f);
+            motion.y = Mathf.Lerp(motion.y, -fluid.FallSpeed, 0.01f);
         }
     }
 
@@ -292,7 +292,7 @@ public class Player : MonoBehaviour
         if (targetBlock != null)
         {
             Gizmos.DrawLine(cam.transform.position, interactHit.point);
-            Gizmos.DrawWireCube(targetBlock.pos + Vector3.one * 0.5f, Vector3.one);
+            Gizmos.DrawWireCube(targetBlock.Pos + Vector3.one * 0.5f, Vector3.one);
         }
         else
         {

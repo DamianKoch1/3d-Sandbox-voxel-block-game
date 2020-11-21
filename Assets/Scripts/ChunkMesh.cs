@@ -41,9 +41,9 @@ public class ChunkMesh : MonoBehaviour
 
         mesh.uv = uvs.ToArray();
 
-        mesh.RecalculateBounds();
+        //mesh.RecalculateBounds();
         mesh.RecalculateNormals();
-        mesh.Optimize();
+        //mesh.Optimize();
 
         mf.mesh = mesh;
 

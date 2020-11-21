@@ -5,9 +5,9 @@ using UnityEngine;
 
 public class Grass : BlockOpaque
 {
-    public Grass(Vector3Int _pos) : base(_pos)
+    public Grass(Vector3Int pos) : base(pos)
     {
-        type = BlockType.grass;
+        Type = BlockType.Grass;
     }
 
     protected override Vector2Int GetTilesetPos()
@@ -28,9 +28,9 @@ public class Grass : BlockOpaque
 
 public class Dirt : BlockOpaque
 {
-    public Dirt(Vector3Int _pos) : base(_pos)
+    public Dirt(Vector3Int pos) : base(pos)
     {
-        type = BlockType.dirt;
+        Type = BlockType.Dirt;
     }
 
     protected override Vector2Int GetTilesetPos()
@@ -41,9 +41,9 @@ public class Dirt : BlockOpaque
 
 public class Stone : BlockOpaque
 {
-    public Stone(Vector3Int _pos) : base(_pos)
+    public Stone(Vector3Int pos) : base(pos)
     {
-        type = BlockType.stone;
+        Type = BlockType.Stone;
     }
 
     protected override Vector2Int GetTilesetPos()
@@ -54,9 +54,9 @@ public class Stone : BlockOpaque
 
 public class BottomStone : BlockOpaque
 {
-    public BottomStone(Vector3Int _pos) : base(_pos)
+    public BottomStone(Vector3Int pos) : base(pos)
     {
-        type = BlockType.bottomStone;
+        Type = BlockType.BottomStone;
     }
 
     protected override Vector2Int GetTilesetPos()
@@ -67,10 +67,10 @@ public class BottomStone : BlockOpaque
 
 public class Water : Fluid
 {
-    public Water(Vector3Int _pos) : base(_pos)
+    public Water(Vector3Int pos) : base(pos)
     {
-        type = BlockType.water;
-        fallSpeed = 3;
+        Type = BlockType.Water;
+        FallSpeed = 3;
         maxHorizontalFlow = 3;
     }
 
@@ -82,9 +82,9 @@ public class Water : Fluid
 
 public class Glass : BlockTransparent
 {
-    public Glass(Vector3Int _pos) : base(_pos)
+    public Glass(Vector3Int pos) : base(pos)
     {
-        type = BlockType.glass;
+        Type = BlockType.Glass;
     }
 
     protected override Vector2Int GetTilesetPos()
@@ -97,9 +97,9 @@ public class TNT : BlockOpaque, IUseable
 {
     private int range = 2;
 
-    public TNT(Vector3Int _pos) : base(_pos)
+    public TNT(Vector3Int pos) : base(pos)
     {
-        type = BlockType.tnt;
+        Type = BlockType.Tnt;
     }
 
     public void OnUsed()
@@ -107,13 +107,13 @@ public class TNT : BlockOpaque, IUseable
         List<Vector3> blocksToDestroy = new List<Vector3>();
         for (int y = -range; y <= range; y++)
         {
-            if (pos.y + y < 0) continue;
-            if (pos.y + y >= Chunk.HEIGHT) continue;
+            if (Pos.y + y < 0) continue;
+            if (Pos.y + y >= Chunk.HEIGHT) continue;
             for (int x = -range; x <= range; x++)
             {
                 for (int z = -range; z <= range; z++)
                 {
-                    blocksToDestroy.Add(pos + new Vector3Int(x, y, z));
+                    blocksToDestroy.Add(Pos + new Vector3Int(x, y, z));
                 }
             }
         }

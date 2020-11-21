@@ -11,13 +11,13 @@ public abstract class Block
     /// </summary>
     public const int TILESET_DIMENSIONS = 10;
 
-    public Vector3Int pos;
+    public Vector3Int Pos { get; private set; }
 
-    public BlockType type;
+    public BlockType Type { get; protected set; }
 
-    public Block(Vector3Int _pos)
+    public Block(Vector3Int pos)
     {
-        pos = _pos;
+        Pos = pos;
     }
 
     /// <summary>
@@ -104,12 +104,12 @@ public abstract class Block
     public List<Block> GetNeighbours()
     {
         List<Block> neighbours = new List<Block>();
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.left));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.right));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.up));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + Vector3Int.down));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + new Vector3Int(0, 0, 1)));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(pos + new Vector3Int(0, 0, -1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.left));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.right));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.up));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.down));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3Int(0, 0, 1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3Int(0, 0, -1)));
         return neighbours;
     }
 
@@ -124,7 +124,7 @@ public abstract class Block
 
 public abstract class BlockOpaque : Block
 {
-    public BlockOpaque(Vector3Int _pos) : base(_pos)
+    public BlockOpaque(Vector3Int pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Block neighbour)
@@ -135,7 +135,7 @@ public abstract class BlockOpaque : Block
 
 public abstract class BlockTransparent : Block
 {
-    public BlockTransparent(Vector3Int _pos) : base(_pos)
+    public BlockTransparent(Vector3Int pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Block neighbour)
@@ -151,14 +151,14 @@ public abstract class BlockTransparent : Block
 
 public abstract class Fluid : Block
 {
-    public float fallSpeed = 3;
+    public float FallSpeed { get; protected set; } = 3;
 
     protected float tickInterval = 0.5f;
 
     protected int currHorizontalFlow = 0;
     protected int maxHorizontalFlow = 2;
 
-    public Fluid(Vector3Int _pos) : base(_pos)
+    public Fluid(Vector3Int pos) : base(pos)
     {
         currHorizontalFlow = 0;
     }
@@ -186,10 +186,13 @@ public abstract class Fluid : Block
     {
         await Task.Delay((int)(tickInterval * 1000));
 
-        var blockBelow = TerrainGenerator.Instance.GetBlock(pos + Vector3Int.down);
+        var affectedChunks = new HashSet<Chunk>();
+
+        var blockBelow = TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.down);
         if (blockBelow == null)
         {
-            TryFlowToDir(Vector3Int.down, 0);
+            TryFlowToDir(Vector3Int.down, 0, affectedChunks);
+            foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
             return;
         }
         else if (blockBelow is Fluid)
@@ -199,10 +202,11 @@ public abstract class Fluid : Block
         }
         else if (currHorizontalFlow >= maxHorizontalFlow) return;
 
-        TryFlowToDir(Vector3Int.left, currHorizontalFlow + 1);
-        TryFlowToDir(Vector3Int.right, currHorizontalFlow + 1);
-        TryFlowToDir(new Vector3Int(0, 0, 1), currHorizontalFlow + 1);
-        TryFlowToDir(new Vector3Int(0, 0, -1), currHorizontalFlow + 1);
+        TryFlowToDir(Vector3Int.left, currHorizontalFlow + 1, affectedChunks);
+        TryFlowToDir(Vector3Int.right, currHorizontalFlow + 1, affectedChunks);
+        TryFlowToDir(new Vector3Int(0, 0, 1), currHorizontalFlow + 1, affectedChunks);
+        TryFlowToDir(new Vector3Int(0, 0, -1), currHorizontalFlow + 1, affectedChunks);
+        foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
     }
 
     /// <summary>
@@ -210,9 +214,9 @@ public abstract class Fluid : Block
     /// </summary>
     /// <param name="dir">direction to flow in</param>
     /// <param name="newFlowAmount"></param>
-    protected void TryFlowToDir(Vector3Int dir, int newFlowAmount)
+    protected void TryFlowToDir(Vector3Int dir, int newFlowAmount, HashSet<Chunk> affectedChunks)
     {
-        var newPos = pos + dir;
+        var newPos = Pos + dir;
         var block = TerrainGenerator.Instance.GetBlock(newPos);
         if (block != null)
         {
@@ -223,7 +227,7 @@ public abstract class Fluid : Block
             }
             return;
         }
-        var newFluid = TerrainGenerator.Instance.PlaceBlock(type, newPos);
+        var newFluid = TerrainGenerator.Instance.PlaceBlockSilent(Type, newPos, affectedChunks);
         if (!(newFluid is Fluid)) return;
         ((Fluid)newFluid).currHorizontalFlow = newFlowAmount;
     }

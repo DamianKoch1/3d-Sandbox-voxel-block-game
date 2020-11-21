@@ -8,19 +8,19 @@ public class BlockFactory : MonoBehaviour
     {
         switch (type)
         {
-            case BlockType.grass:
+            case BlockType.Grass:
                 return new Grass(pos);
-            case BlockType.dirt:
+            case BlockType.Dirt:
                 return new Dirt(pos);
-            case BlockType.stone:
+            case BlockType.Stone:
                 return new Stone(pos);
-            case BlockType.bottomStone:
+            case BlockType.BottomStone:
                 return new BottomStone(pos);
-            case BlockType.water:
+            case BlockType.Water:
                 return new Water(pos);
-            case BlockType.glass:
+            case BlockType.Glass:
                 return new Glass(pos);
-            case BlockType.tnt:
+            case BlockType.Tnt:
                 return new TNT(pos);
         }
         return null;
@@ -34,11 +34,11 @@ public class BlockFactory : MonoBehaviour
 
 public enum BlockType
 {
-    grass,
-    dirt,
-    stone,
-    bottomStone,
-    water,
-    glass,
-    tnt,
+    Grass = 0,
+    Dirt = 1,
+    Stone = 2,
+    BottomStone = 3,
+    Water = 4,
+    Glass = 5,
+    Tnt = 6,
 }

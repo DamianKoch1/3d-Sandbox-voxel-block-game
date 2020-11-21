@@ -47,22 +47,22 @@ public class Chunk : ChunkMesh
                 {
                     Block block = null;
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
-                    if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
-                    else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
+                    if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
+                    else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
                     else if (y <= Mathf.Max(tg.waterLevel, localSurfaceLevel) - tg.minCaveSurfaceDistance
                         && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.caveNoiseThreshold)
                     {
                         var above = blocks[x, y + 1, z];
-                        if (above is Fluid) block = BlockFactory.Create(above.type, blockPos);
+                        if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
                         else continue;
                     }
                     else if (y == localSurfaceLevel)
                     {
-                        if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.grass, blockPos);
-                        else block = BlockFactory.Create(BlockType.dirt, blockPos);
+                        if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
+                        else block = BlockFactory.Create(BlockType.Dirt, blockPos);
                     }
-                    else if (y > localSurfaceLevel - tg.dirtLayerSize) block = BlockFactory.Create(BlockType.dirt, blockPos);
-                    else if (y > 0) block = BlockFactory.Create(BlockType.stone, blockPos);
+                    else if (y > localSurfaceLevel - tg.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                    else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
                     blocks[x, y, z] = block;
                 }
             }
@@ -74,8 +74,6 @@ public class Chunk : ChunkMesh
     /// </summary>
     public virtual void BuildMesh()
     {
-        mesh.Clear();
-
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Vector2> UVs = new List<Vector2>();
@@ -88,9 +86,9 @@ public class Chunk : ChunkMesh
         List<int> transparentTriangles = new List<int>();
         List<Vector2> transparentUVs = new List<Vector2>();
 
-        List<Vector3> vertexList = vertices;
-        List<int> triList = triangles;
-        List<Vector2> uvList = UVs;
+        List<Vector3> vertexList;
+        List<int> triList;
+        List<Vector2> uvList;
 
         for (int x = 0; x < SIZE; x++)
         {
@@ -125,7 +123,7 @@ public class Chunk : ChunkMesh
 
                     if (z == 0)
                     {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos - Vector3.forward);
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.forward);
                     }
                     else
                     {
@@ -147,7 +145,7 @@ public class Chunk : ChunkMesh
 
                     if (z == SIZE - 1)
                     {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos + Vector3.forward);
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.forward);
                     }
                     else
                     {
@@ -169,7 +167,7 @@ public class Chunk : ChunkMesh
 
                     if (x == 0)
                     {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos - Vector3.right);
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.right);
                     }
                     else
                     {
@@ -191,7 +189,7 @@ public class Chunk : ChunkMesh
 
                     if (x == SIZE - 1)
                     {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.pos + Vector3.right);
+                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.right);
                     }
                     else
                     {

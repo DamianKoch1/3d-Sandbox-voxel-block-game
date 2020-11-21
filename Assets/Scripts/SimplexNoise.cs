@@ -6,22 +6,22 @@ using UnityEngine;
 
 public class SimplexNoise
 {
-    private const double STRETCH_2D = -0.211324865405187;    //(1/Math.sqrt(2+1)-1)/2;
-    private const double STRETCH_3D = -1.0 / 6.0;            //(1/Math.sqrt(3+1)-1)/3;
-    private const double STRETCH_4D = -0.138196601125011;    //(1/Math.sqrt(4+1)-1)/4;
-    private const double SQUISH_2D = 0.366025403784439;      //(Math.sqrt(2+1)-1)/2;
-    private const double SQUISH_3D = 1.0 / 3.0;              //(Math.sqrt(3+1)-1)/3;
-    private const double SQUISH_4D = 0.309016994374947;      //(Math.sqrt(4+1)-1)/4;
-    private const double NORM_2D = 1.0 / 47.0 / 2;
-    private const double NORM_3D = 1.0 / 103.0 / 2;
-    private const double NORM_4D = 1.0 / 30.0 / 2;
+    private const float STRETCH_2D = -0.211324865405187f;    //(1/Math.sqrt(2+1)-1)/2;
+    private const float STRETCH_3D = -1.0f / 6.0f;            //(1/Math.sqrt(3+1)-1)/3;
+    private const float STRETCH_4D = -0.138196601125011f;    //(1/Math.sqrt(4+1)-1)/4;
+    private const float SQUISH_2D = 0.366025403784439f;      //(Math.sqrt(2+1)-1)/2;
+    private const float SQUISH_3D = 1.0f / 3.0f;              //(Math.sqrt(3+1)-1)/3;
+    private const float SQUISH_4D = 0.309016994374947f;      //(Math.sqrt(4+1)-1)/4;
+    private const float NORM_2D = 1.0f / 94.0f;
+    private const float NORM_3D = 1.0f / 206.0f;
+    private const float NORM_4D = 1.0f / 60.0f;
 
     private byte[] perm;
     private byte[] perm2D;
     private byte[] perm3D;
     private byte[] perm4D;
 
-    private static double[] gradients2D = new double[]
+    private static float[] gradients2D = new float[]
     {
              5,  2,    2,  5,
             -5,  2,   -2,  5,
@@ -29,7 +29,7 @@ public class SimplexNoise
             -5, -2,   -2, -5,
     };
 
-    private static double[] gradients3D =
+    private static float[] gradients3D =
     {
             -11,  4,  4,     -4,  11,  4,    -4,  4,  11,
              11,  4,  4,      4,  11,  4,     4,  4,  11,
@@ -41,7 +41,7 @@ public class SimplexNoise
              11, -4, -4,      4, -11, -4,     4, -4, -11,
         };
 
-    private static double[] gradients4D =
+    private static float[] gradients4D =
     {
              3,  1,  1,  1,      1,  3,  1,  1,      1,  1,  3,  1,      1,  1,  1,  3,
             -3,  1,  1,  1,     -1,  3,  1,  1,     -1,  1,  3,  1,     -1,  1,  1,  3,
@@ -180,7 +180,7 @@ public class SimplexNoise
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int FastFloor(double x)
+    private static int FastFloor(float x)
     {
         var xi = (int)x;
         return x < xi ? xi - 1 : xi;
@@ -224,7 +224,7 @@ public class SimplexNoise
         }
     }
 
-    public double Evaluate(double x, double y)
+    public float Evaluate(float x, float y)
     {
         var stretchOffset = (x + y) * STRETCH_2D;
         var xs = x + stretchOffset;
@@ -250,7 +250,7 @@ public class SimplexNoise
 
         var c = lookup2D[hash];
 
-        var value = 0.0;
+        var value = 0.0f;
         while (c != null)
         {
             var dx = dx0 + c.dx;
@@ -269,10 +269,10 @@ public class SimplexNoise
             }
             c = c.Next;
         }
-        return value * NORM_2D + 0.5;
+        return value * NORM_2D + 0.5f;
     }
 
-    public double Evaluate(double x, double y, double z)
+    public float Evaluate(float x, float y, float z)
     {
         var stretchOffset = (x + y + z) * STRETCH_3D;
         var xs = x + stretchOffset;
@@ -305,7 +305,7 @@ public class SimplexNoise
 
         var c = lookup3D[hash];
 
-        var value = 0.0;
+        var value = 0.0f;
         while (c != null)
         {
             var dx = dx0 + c.dx;
@@ -327,10 +327,10 @@ public class SimplexNoise
 
             c = c.Next;
         }
-        return value * NORM_3D + 0.5;
+        return value * NORM_3D + 0.5f;
     }
 
-    public double Evaluate(double x, double y, double z, double w)
+    public float Evaluate(float x, float y, float z, float w)
     {
         var stretchOffset = (x + y + z + w) * STRETCH_4D;
         var xs = x + stretchOffset;
@@ -371,7 +371,7 @@ public class SimplexNoise
 
         var c = lookup4D[hash];
 
-        var value = 0.0;
+        var value = 0.0f;
         while (c != null)
         {
             var dx = dx0 + c.dx;
@@ -395,16 +395,16 @@ public class SimplexNoise
 
             c = c.Next;
         }
-        return value * NORM_4D + 0.5;
+        return value * NORM_4D + 0.5f;
     }
 
     private class Contribution2
     {
-        public double dx, dy;
+        public float dx, dy;
         public int xsb, ysb;
         public Contribution2 Next;
 
-        public Contribution2(double multiplier, int xsb, int ysb)
+        public Contribution2(float multiplier, int xsb, int ysb)
         {
             dx = -xsb - multiplier * SQUISH_2D;
             dy = -ysb - multiplier * SQUISH_2D;
@@ -415,11 +415,11 @@ public class SimplexNoise
 
     private class Contribution3
     {
-        public double dx, dy, dz;
+        public float dx, dy, dz;
         public int xsb, ysb, zsb;
         public Contribution3 Next;
 
-        public Contribution3(double multiplier, int xsb, int ysb, int zsb)
+        public Contribution3(float multiplier, int xsb, int ysb, int zsb)
         {
             dx = -xsb - multiplier * SQUISH_3D;
             dy = -ysb - multiplier * SQUISH_3D;
@@ -432,11 +432,11 @@ public class SimplexNoise
 
     private class Contribution4
     {
-        public double dx, dy, dz, dw;
+        public float dx, dy, dz, dw;
         public int xsb, ysb, zsb, wsb;
         public Contribution4 Next;
 
-        public Contribution4(double multiplier, int xsb, int ysb, int zsb, int wsb)
+        public Contribution4(float multiplier, int xsb, int ysb, int zsb, int wsb)
         {
             dx = -xsb - multiplier * SQUISH_4D;
             dy = -ysb - multiplier * SQUISH_4D;
