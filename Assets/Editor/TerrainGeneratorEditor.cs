@@ -26,8 +26,8 @@ public class TerrainGeneratorEditor : Editor
         var style = new GUIStyle(GUI.skin.label)
         {
             alignment = TextAnchor.UpperCenter,
-            fixedWidth = 100,
-            fixedHeight = 100
+            fixedWidth = 200,
+            fixedHeight = 200
         };
         if (tg.showSurfaceNoiseSample)  GUILayout.Label(tg.GetSurfaceNoiseSampleTex(), style);
         if (tg.showCaveNoiseSample)     GUILayout.Label(tg.GetCaveNoiseSampleTex(), style);

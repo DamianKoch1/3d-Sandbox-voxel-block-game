@@ -49,7 +49,8 @@ public class Chunk : ChunkMesh
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.bottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.water, blockPos);
-                    else if (tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.caveNoiseThreshold)
+                    else if (y <= Mathf.Max(tg.waterLevel, localSurfaceLevel) - tg.minCaveSurfaceDistance
+                        && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.caveNoiseThreshold)
                     {
                         var above = blocks[x, y + 1, z];
                         if (above is Fluid) block = BlockFactory.Create(above.type, blockPos);

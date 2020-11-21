@@ -28,12 +28,14 @@ public class TerrainGenerator : MonoBehaviour
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
+    [SerializeField, Space]
+    private bool useRandomSeeds;
 
-    
+
     [Header("Surface settings"), Range(0, 100)]
     public int minSurfaceLevel = 50;
 
-    [Range(0, 70)]
+    [Range(0, 100)]
     public int waterLevel = 60;
 
     [Range(2, 10)]
@@ -42,17 +44,11 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField, Range(0, 10)]
     private int renderDistance = 5;
 
-    [SerializeField]
-    private bool useRandomSeed;
 
-    public Noise shapeNoise;
-
-    public Noise detailNoise;
+    public Noise surfaceNoise;
 
     [Header("Cave settings")]
-    public Noise caveShapeNoise;
-
-    public Noise caveDetailNoise;
+    public Noise caveNoise;
 
     [Range(0, 1), Tooltip("Carves a cave if CaveNoise at position is above this")]
     public float caveNoiseThreshold = 0.8f;
@@ -191,12 +187,10 @@ public class TerrainGenerator : MonoBehaviour
     {
         Clear();
 
-        if (useRandomSeed)
+        if (useRandomSeeds)
         {
-            shapeNoise.RandomizeSeed();
-            detailNoise.RandomizeSeed();
-            caveShapeNoise.RandomizeSeed();
-            caveDetailNoise.RandomizeSeed();
+            surfaceNoise.RandomizeSeed();
+            caveNoise.RandomizeSeed();
         }
 
         for (int x = -renderDistance; x <= renderDistance; x++)
@@ -254,6 +248,21 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
+    [ContextMenu("")]
+    public void test()
+    {
+        var s = new SimplexNoise();
+        double smallest = 2;
+        double biggest = -1;
+        for (int i = 0; i < 10000; i++)
+        {
+            var n = SurfaceNoise(0, i);
+            if (n > biggest) biggest = n;
+            else if (n < smallest) smallest = n;
+        }
+        print(smallest + " " + biggest);
+    }
+
     /// <summary>
     /// Get minSurfaceLevel + perlin noise int for (x, z) * frequency offset by seed
     /// </summary>
@@ -262,7 +271,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public int SurfaceNoise(float x, float z)
     {
-        return (int)Mathf.Min(detailNoise.GetValue(x, z) * (shapeNoise.GetValue(x, z)) + minSurfaceLevel, Chunk.HEIGHT - 1);
+        return (int)Mathf.Min(surfaceNoise.GetValue(x, z) + minSurfaceLevel, Chunk.HEIGHT - 1);
     }
 
     /// <summary>
@@ -274,14 +283,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public float CaveNoise(float x, float y, float z)
     {
-        float retVal = caveShapeNoise.GetValue(x, y) * caveDetailNoise.GetValue(x, y);
-        retVal += caveShapeNoise.GetValue(y, z) * caveDetailNoise.GetValue(y, z);
-        retVal += caveShapeNoise.GetValue(x, z) * caveDetailNoise.GetValue(x, z);
-        retVal += caveShapeNoise.GetValue(y, x) * caveDetailNoise.GetValue(y, x);
-        retVal += caveShapeNoise.GetValue(z, y) * caveDetailNoise.GetValue(z, y);
-        retVal += caveShapeNoise.GetValue(z, x) * caveDetailNoise.GetValue(z, x);
-        retVal /= 6f;
-        return retVal / caveShapeNoise.amplitude / caveDetailNoise.amplitude;
+        return caveNoise.GetValue(x, y, z);
     }
 
     /// <summary>
@@ -385,8 +387,9 @@ public class TerrainGenerator : MonoBehaviour
         {
             for (int z = 0; z < surfaceNoiseSampleSize; z++)
             {
-                float sample = (SurfaceNoise(x, z) - minSurfaceLevel) / shapeNoise.amplitude / detailNoise.amplitude;
-                tex.SetPixel(x, z, new Color(sample, sample, sample));
+                var surface = SurfaceNoise(x, z);
+                float sample = (float)(surface - minSurfaceLevel) / (Chunk.HEIGHT - 1 - minSurfaceLevel);
+                tex.SetPixel(x, z, new Color(sample, surface >= waterLevel ? sample + 0.3f : sample, surface >= waterLevel ? sample : sample + 0.3f));
             }
         }
         tex.Apply();
@@ -417,22 +420,61 @@ public class TerrainGenerator : MonoBehaviour
 [System.Serializable]
 public class Noise
 {
-    public float seed;
+    public long seed;
 
     [Range(0, 0.15f)]
-    public float frequency;
+    public float frequency = 0.01f;
 
     [Range(1, 50)]
-    public float amplitude;
+    public float amplitude = 1;
+
+    [SerializeField] private NoiseLayer[] layers;
+
+    private SimplexNoise sNoise;
+
+    private SimplexNoise SNoise
+    {
+        get
+        {
+            if (sNoise?.Seed != seed) sNoise = new SimplexNoise(seed);
+            return sNoise;
+        }
+    }
 
     public void RandomizeSeed()
     {
-        seed = Random.Range(0f, 100000f);
+        seed = (long)Random.Range(0f, 100000f);
     }
 
     public float GetValue(float x, float z)
     {
-        return Mathf.PerlinNoise(x * frequency + seed, z * frequency + seed) * amplitude;
+        var retVal = (float)SNoise.Evaluate(x * frequency, z * frequency) * amplitude;
+        foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, z);
+        return retVal;
+    }
+
+    public float GetValue(float x, float y, float z)
+    {
+        var retVal = (float)SNoise.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude;
+        foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, y, z);
+        return retVal;
+    }
+
+    [System.Serializable]
+    private class NoiseLayer
+    {
+        [SerializeField, Range(0, 1)]
+        private float weight = 1;
+
+        [SerializeField, Range(0, 0.3f)]
+        private float frequency = 0.01f;
+
+        [SerializeField, Range(0, 10)]
+        private float amplitude = 1;
+
+        public float GetValue(SimplexNoise n, float x, float z) => (float)(n.Evaluate(x * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
+
+        public float GetValue(SimplexNoise n, float x, float y, float z) => (float)(n.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
     }
 
 }
