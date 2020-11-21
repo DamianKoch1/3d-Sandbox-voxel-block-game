@@ -117,7 +117,7 @@ public class Chunk : ChunkMesh
                         uvList = UVs;
                     }
 
-                    var blockPos = new Vector3(x, y, z);
+                    var blockIdx = new Vector3(x, y, z);
                     int numFaces = 0;
                     Block neighbour;
 
@@ -133,13 +133,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //front
-                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
-                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
+                        foreach (var vertex in block.GetVertices(Direction.South, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.South));
                         numFaces++;
-
-                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -155,13 +152,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //back
-                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
+                        foreach (var vertex in block.GetVertices(Direction.North, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.North));
                         numFaces++;
-
-                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -177,13 +171,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //left
-                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
-                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
-                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
+                        foreach (var vertex in block.GetVertices(Direction.West, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.West));
                         numFaces++;
-
-                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -199,13 +190,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //right
-                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
+                        foreach (var vertex in block.GetVertices(Direction.East, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.East));
                         numFaces++;
-
-                        uvList.AddRange(block.GetSideUVs());
                     }
 
 
@@ -221,13 +209,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //bottom
-                        vertexList.Add(blockPos + new Vector3(0, 0, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 0, 0));
-                        vertexList.Add(blockPos + new Vector3(1, 0, 1));
-                        vertexList.Add(blockPos + new Vector3(0, 0, 1));
+                        foreach (var vertex in block.GetVertices(Direction.Down, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.Down));
                         numFaces++;
-
-                        uvList.AddRange(block.GetBottomUVs());
                     }
 
                     if (y == HEIGHT - 1)
@@ -242,13 +227,10 @@ public class Chunk : ChunkMesh
                     if (block.DrawFaceNextTo(neighbour))
                     {
                         //top
-                        vertexList.Add(blockPos + new Vector3(0, 1, 0));
-                        vertexList.Add(blockPos + new Vector3(0, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 1));
-                        vertexList.Add(blockPos + new Vector3(1, 1, 0));
+                        foreach (var vertex in block.GetVertices(Direction.Up, neighbour))
+                            vertexList.Add(blockIdx + vertex);
+                        uvList.AddRange(block.GetUVs(Direction.Up));
                         numFaces++;
-
-                        uvList.AddRange(block.GetTopUVs());
                     }
 
                     int triangleIdx = vertexList.Count - numFaces * 4;
@@ -271,6 +253,7 @@ public class Chunk : ChunkMesh
         ApplyMesh(vertices, triangles, UVs);
     }
 
+    #region Utils
     /// <summary>
     /// Get the block index (local, 0 - (SIZE-1)) of this chunk at v
     /// </summary>
@@ -299,22 +282,6 @@ public class Chunk : ChunkMesh
     }
 
     /// <summary>
-    /// Destroys block at _pos, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
-    /// </summary>
-    /// <param name="_pos">position of block to destroy (world pos)</param>
-    /// <returns></returns>
-    public bool DestroyBlock(Vector3 _pos)
-    {
-        var idx = GetBlockIdx(_pos);
-        if (!IsValidBlockIdx(idx)) return false;
-        blocks[idx.x, idx.y, idx.z].OnDestroyed();
-        blocks[idx.x, idx.y, idx.z] = null;
-        BuildMesh();
-        UpdateAdjacentChunks(idx);
-        return true;
-    }
-
-    /// <summary>
     /// Does this chunk have a block at given index?
     /// </summary>
     /// <param name="idx">local index of block</param>
@@ -323,31 +290,31 @@ public class Chunk : ChunkMesh
     {
         return blocks[idx.x, idx.y, idx.z] != null;
     }
+    #endregion
 
+    #region Place
     /// <summary>
-    /// Destroys block at _pos, does not rebuild meshes but stores affected chunks, useful for destroying multiple blocks at once
+    /// Places block of given type at _pos if possible, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
     /// </summary>
-    /// <param name="_pos">position of block to destroy (world pos)</param>
-    /// <param name="affectedChunks">hashset to store affected chunks in</param>
-    /// <param name="includeFluids">determines whether fluids should get destroyed aswell as solid blocks</param>
-    /// <returns></returns>
-    public bool DestroyBlockSilent(Vector3 _pos, HashSet<Chunk> affectedChunks, bool includeFluids)
+    /// <param name="type">what block to place</param>
+    /// <param name="_pos">where to place block (world pos)</param>
+    /// <returns>returns placed block, returns null if spot is blocked by player / occupied by solid block</returns>
+    public Block PlaceBlock(BlockType type, Vector3 _pos, bool ignoreEntities = false)
     {
         var idx = GetBlockIdx(_pos);
-        if (!IsValidBlockIdx(idx)) return false;
-        if (!includeFluids)
+        var blockPos = Vector3Int.FloorToInt(_pos);
+        var block = blocks[idx.x, idx.y, idx.z];
+        if (!(block is Fluid))
         {
-            if (blocks[idx.x, idx.y, idx.z] is Fluid) return false;
+            if (block != null) return null;
         }
-        blocks[idx.x, idx.y, idx.z].OnDestroyed();
-        blocks[idx.x, idx.y, idx.z] = null;
-        affectedChunks.Add(this);
-        var tg = TerrainGenerator.Instance;
-        if (idx.x == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
-        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
-        if (idx.z == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
-        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
-        return true;
+        if (!ignoreEntities && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
+        var newBlock = BlockFactory.Create(type, blockPos);
+        blocks[idx.x, idx.y, idx.z] = newBlock;
+        newBlock.OnPlaced();
+        BuildMesh();
+        UpdateAdjacentChunks(idx);
+        return newBlock;
     }
 
     /// <summary>
@@ -376,6 +343,51 @@ public class Chunk : ChunkMesh
         else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
         return blocks[idx.x, idx.y, idx.z];
     }
+    #endregion
+
+    #region Destroy
+    /// <summary>
+    /// Destroys block at _pos, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
+    /// </summary>
+    /// <param name="_pos">position of block to destroy (world pos)</param>
+    /// <returns></returns>
+    public bool DestroyBlock(Vector3 _pos)
+    {
+        var idx = GetBlockIdx(_pos);
+        if (!IsValidBlockIdx(idx)) return false;
+        blocks[idx.x, idx.y, idx.z].OnDestroyed();
+        blocks[idx.x, idx.y, idx.z] = null;
+        BuildMesh();
+        UpdateAdjacentChunks(idx);
+        return true;
+    }
+
+    /// <summary>
+    /// Destroys block at _pos, does not rebuild meshes but stores affected chunks, useful for destroying multiple blocks at once
+    /// </summary>
+    /// <param name="_pos">position of block to destroy (world pos)</param>
+    /// <param name="affectedChunks">hashset to store affected chunks in</param>
+    /// <param name="includeFluids">determines whether fluids should get destroyed aswell as solid blocks</param>
+    /// <returns></returns>
+    public bool DestroyBlockSilent(Vector3 _pos, HashSet<Chunk> affectedChunks, bool includeFluids)
+    {
+        var idx = GetBlockIdx(_pos);
+        if (!IsValidBlockIdx(idx)) return false;
+        if (!includeFluids)
+        {
+            if (blocks[idx.x, idx.y, idx.z] is Fluid) return false;
+        }
+        blocks[idx.x, idx.y, idx.z].OnDestroyed();
+        blocks[idx.x, idx.y, idx.z] = null;
+        affectedChunks.Add(this);
+        var tg = TerrainGenerator.Instance;
+        if (idx.x == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
+        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
+        if (idx.z == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
+        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
+        return true;
+    }
+    #endregion
 
     /// <summary>
     /// If blockIdx is at borders of this chunk, rebuild the mesh of adjacent ones to it
@@ -388,30 +400,6 @@ public class Chunk : ChunkMesh
         else if (blockIdx.x == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.right)?.BuildMesh();
         if (blockIdx.z == 0)                tg.GetChunkByIdx(pos + Vector2Int.down)?.BuildMesh();
         else if (blockIdx.z == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.up)?.BuildMesh();
-    }
-
-    /// <summary>
-    /// Places block of given type at _pos if possible, if successful rebuilds mesh, if at chunk border rebuilds neighbour mesh aswell
-    /// </summary>
-    /// <param name="type">what block to place</param>
-    /// <param name="_pos">where to place block (world pos)</param>
-    /// <returns>returns placed block, returns null if spot is blocked by player / occupied by solid block</returns>
-    public Block PlaceBlock(BlockType type, Vector3 _pos, bool ignoreEntities = false)
-    {
-        var idx = GetBlockIdx(_pos);
-        var blockPos = Vector3Int.FloorToInt(_pos);
-        var block = blocks[idx.x, idx.y, idx.z];
-        if (!(block is Fluid))
-        {
-            if (block != null) return null;
-        }
-        if (!ignoreEntities && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
-        var newBlock = BlockFactory.Create(type, blockPos);
-        blocks[idx.x, idx.y, idx.z] = newBlock;
-        newBlock.OnPlaced();
-        BuildMesh();
-        UpdateAdjacentChunks(idx);
-        return newBlock;
     }
 
     private void OnDrawGizmosSelected()

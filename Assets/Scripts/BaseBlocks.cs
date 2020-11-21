@@ -6,11 +6,6 @@ using UnityEngine;
 
 public abstract class Block
 {
-    /// <summary>
-    /// How many 16px block textures there are in a row / column
-    /// </summary>
-    public const int TILESET_DIMENSIONS = 10;
-
     public Vector3Int Pos { get; private set; }
 
     public BlockType Type { get; protected set; }
@@ -21,62 +16,18 @@ public abstract class Block
     }
 
     /// <summary>
-    /// Where on the tileset this blocks default (top) texture starts (bottom left to top right, 1 unit = 16px)
-    /// </summary>
-    /// <returns></returns>
-    protected abstract Vector2Int GetTilesetPos();
-
-    /// <summary>
-    /// Where on the tileset this blocks side texture starts (bottom left to top right, 1 unit = 16px)
-    /// </summary>
-    /// <returns></returns>
-    protected virtual Vector2Int GetSideTilesetPos()
-    {
-        return GetTilesetPos();
-    }
-
-    /// <summary>
-    /// Where on the tileset this blocks bottom texture starts (bottom left to top right, 1 unit = 16px)
-    /// </summary>
-    /// <returns></returns>
-    protected virtual Vector2Int GetBottomTilesetPos()
-    {
-        return GetTilesetPos();
-    }
-
-    private static Vector2[] GetUVs(Vector2Int offset)
-    {
-        return new Vector2[]
-        {
-            new Vector2(offset.x, offset.y) / TILESET_DIMENSIONS,
-            new Vector2(offset.x, offset.y + 1) / TILESET_DIMENSIONS,
-            new Vector2(offset.x + 1, offset.y + 1) / TILESET_DIMENSIONS,
-            new Vector2(offset.x + 1, offset.y) / TILESET_DIMENSIONS
-        };
-    }
-
-    public Vector2[] GetTopUVs()
-    {
-        return GetUVs(GetTilesetPos());
-    }
-
-    public Vector2[] GetSideUVs()
-    {
-        return GetUVs(GetSideTilesetPos());
-    }
-
-    public Vector2[] GetBottomUVs()
-    {
-        return GetUVs(GetBottomTilesetPos());
-    }
-
-
-    /// <summary>
     /// Should a face be drawn when given block is next to it?
     /// </summary>
     /// <param name="neighbour">neighbour block</param>
     /// <returns></returns>
     public abstract bool DrawFaceNextTo(Block neighbour);
+
+    public virtual Vector3[] GetVertices(Direction dir, Block neighbour)
+    {
+        return BlockDictionary.GetDefaultVertices(dir);
+    }
+
+    public Vector2[] GetUVs(Direction dir) => BlockDictionary.GetBlockUVs(Type, dir);
 
     /// <summary>
     /// Called when block is placed
@@ -142,11 +93,6 @@ public abstract class BlockTransparent : Block
     {
         return !(neighbour is BlockTransparent);
     }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(0, 0);
-    }
 }
 
 public abstract class Fluid : Block
@@ -166,11 +112,6 @@ public abstract class Fluid : Block
     public override bool DrawFaceNextTo(Block neighbour)
     {
         return neighbour == null || neighbour is BlockTransparent;
-    }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(5, 0);
     }
 
     public override void OnBlockUpdate()

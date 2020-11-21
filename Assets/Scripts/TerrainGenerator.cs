@@ -194,7 +194,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <param name="_idx"></param>
     private void GenerateChunk(Vector2Int _idx)
     {
-        var chunk = Instantiate(chunkPrefab.gameObject, transform).GetComponent<Chunk>();
+        var chunk = Instantiate(chunkPrefab, transform);
         chunk.Initialize(_idx);
         chunks[_idx] = chunk;
     }
@@ -256,6 +256,7 @@ public class TerrainGenerator : MonoBehaviour
         return config.caveNoise.GetValue(x, y, z);
     }
 
+    #region Utils
     /// <summary>
     /// Get the chunk v is in
     /// </summary>
@@ -301,7 +302,31 @@ public class TerrainGenerator : MonoBehaviour
         if (!chunk) return null;
         return chunk.GetBlockByPos(pos);
     }
+    #endregion
 
+    #region Place
+    /// <summary>
+    /// Gets chunk pos is in and lets it place block of given type at pos
+    /// </summary>
+    /// <param name="type">what block to place</param>
+    /// <param name="pos">where to place the block</param>
+    /// <returns></returns>
+    public Block PlaceBlock(BlockType type, Vector3 pos, bool ignoreEntities = false)
+    {
+        if (pos.y <= 0) return null;
+        if (pos.y >= Chunk.HEIGHT) return null;
+        var chunk = GetChunk(pos);
+        if (!chunk) return null;
+        return chunk.PlaceBlock(type, pos, ignoreEntities);
+    }
+
+    public Block PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
+    {
+        return GetChunk(_pos).PlaceBlockSilent(type, _pos, affectedChunks);
+    }
+    #endregion
+
+    #region Destroy
     /// <summary>
     /// Remove the block at pos
     /// </summary>
@@ -334,27 +359,9 @@ public class TerrainGenerator : MonoBehaviour
             chunk.BuildMesh();
         }
     }
+    #endregion
 
-    public Block PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
-    {
-        return GetChunk(_pos).PlaceBlockSilent(type, _pos, affectedChunks);
-    }
-
-    /// <summary>
-    /// Gets chunk pos is in and lets it place block of given type at pos
-    /// </summary>
-    /// <param name="type">what block to place</param>
-    /// <param name="pos">where to place the block</param>
-    /// <returns></returns>
-    public Block PlaceBlock(BlockType type, Vector3 pos, bool ignoreEntities = false)
-    {
-        if (pos.y <= 0) return null;
-        if (pos.y >= Chunk.HEIGHT) return null;
-        var chunk = GetChunk(pos);
-        if (!chunk) return null;
-        return chunk.PlaceBlock(type, pos, ignoreEntities);
-    }
-
+    #region Preview
     public Texture2D GetSurfaceNoiseSampleTex()
     {
         var size = noiseSampleSize - noiseSampleSize % noisePixPerUnit;
@@ -397,6 +404,7 @@ public class TerrainGenerator : MonoBehaviour
         tex.Apply();
         return tex;
     }
+    #endregion
 }
 
 [System.Serializable]

@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 
@@ -9,21 +8,6 @@ public class Grass : BlockOpaque
     {
         Type = BlockType.Grass;
     }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(0, 0);
-    }
-
-    protected override Vector2Int GetSideTilesetPos()
-    {
-        return new Vector2Int(1, 0);
-    }
-
-    protected override Vector2Int GetBottomTilesetPos()
-    {
-        return new Vector2Int(2, 0);
-    }
 }
 
 public class Dirt : BlockOpaque
@@ -31,11 +15,6 @@ public class Dirt : BlockOpaque
     public Dirt(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Dirt;
-    }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(2, 0);
     }
 }
 
@@ -45,11 +24,6 @@ public class Stone : BlockOpaque
     {
         Type = BlockType.Stone;
     }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(3, 0);
-    }
 }
 
 public class BottomStone : BlockOpaque
@@ -57,11 +31,6 @@ public class BottomStone : BlockOpaque
     public BottomStone(Vector3Int pos) : base(pos)
     {
         Type = BlockType.BottomStone;
-    }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(4, 0);
     }
 }
 
@@ -73,11 +42,6 @@ public class Water : Fluid
         FallSpeed = 3;
         maxHorizontalFlow = 3;
     }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(5, 0);
-    }
 }
 
 public class Glass : BlockTransparent
@@ -85,11 +49,6 @@ public class Glass : BlockTransparent
     public Glass(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Glass;
-    }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(6, 0);
     }
 }
 
@@ -118,10 +77,5 @@ public class TNT : BlockOpaque, IUseable
             }
         }
         TerrainGenerator.Instance.DestroyBlocks(blocksToDestroy);
-    }
-
-    protected override Vector2Int GetTilesetPos()
-    {
-        return new Vector2Int(7, 0);
     }
 }
