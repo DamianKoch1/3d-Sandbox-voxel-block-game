@@ -383,13 +383,17 @@ public class TerrainGenerator : MonoBehaviour
     public Texture2D GetSurfaceNoiseSampleTex()
     {
         Texture2D tex = new Texture2D(surfaceNoiseSampleSize, surfaceNoiseSampleSize, TextureFormat.RGB24, false);
-        for (int x = 0; x < surfaceNoiseSampleSize; x++)
+        for (int x = 0; x < surfaceNoiseSampleSize; x += 2)
         {
-            for (int z = 0; z < surfaceNoiseSampleSize; z++)
+            for (int z = 0; z < surfaceNoiseSampleSize; z += 2)
             {
                 var surface = SurfaceNoise(x, z);
                 float sample = (float)(surface - minSurfaceLevel) / (Chunk.HEIGHT - 1 - minSurfaceLevel);
-                tex.SetPixel(x, z, new Color(sample, surface >= waterLevel ? sample + 0.3f : sample, surface >= waterLevel ? sample : sample + 0.3f));
+                var c = new Color(sample, surface >= waterLevel ? sample + 0.3f : sample, surface >= waterLevel ? sample : sample + 0.3f);
+                tex.SetPixel(x, z, c);
+                tex.SetPixel(x+1, z, c);
+                tex.SetPixel(x, z+1, c);
+                tex.SetPixel(x+1, z+1, c);
             }
         }
         tex.Apply();
@@ -399,9 +403,9 @@ public class TerrainGenerator : MonoBehaviour
     public Texture2D GetCaveNoiseSampleTex()
     {
         Texture2D tex = new Texture2D(caveNoiseSampleSize, caveNoiseSampleSize, TextureFormat.RGB24, false);
-        for (int x = 0; x < caveNoiseSampleSize; x++)
+        for (int x = 0; x < caveNoiseSampleSize; x += 2)
         {
-            for (int y = 0; y < caveNoiseSampleSize; y++)
+            for (int y = 0; y < caveNoiseSampleSize; y += 2)
             {
                 float sample = CaveNoise(x, y, caveNoiseSampleZ);
                 var c = Color.black;
@@ -410,6 +414,9 @@ public class TerrainGenerator : MonoBehaviour
                     c = Color.white;
                 }
                 tex.SetPixel(x, y, c);
+                tex.SetPixel(x+1, y, c);
+                tex.SetPixel(x, y+1, c);
+                tex.SetPixel(x+1, y+1, c);
             }
         }
         tex.Apply();
