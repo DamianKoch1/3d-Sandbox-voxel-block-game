@@ -28,6 +28,11 @@ public class TerrainGenerator : MonoBehaviour
 
     public Dictionary<Vector2Int, Chunk> chunks;
 
+    [SerializeField, Range(0, 10)]
+    private int renderDistance = 5;
+
+    public bool drawGizmos;
+
     [SerializeField, Space]
     private bool useRandomSeeds;
 
@@ -41,19 +46,16 @@ public class TerrainGenerator : MonoBehaviour
     [Range(2, 10)]
     public int dirtLayerSize = 5;
 
-    [SerializeField, Range(0, 10)]
-    private int renderDistance = 5;
+    [SerializeField]
+    private Noise surfaceNoise;
 
-
-    public Noise surfaceNoise;
-
-    [Header("Cave settings")]
-    public Noise caveNoise;
+    [Header("Cave settings"), SerializeField]
+    private Noise caveNoise;
 
     [Range(0, 1), Tooltip("Carves a cave if CaveNoise at position is above this")]
     public float caveNoiseThreshold = 0.8f;
 
-    [SerializeField, Range(0, 10), Tooltip("How far below the surface caves start to generate")]
+    [SerializeField, Range(0, 10), Tooltip("How far below the surface / water level caves start to generate")]
     public int minCaveSurfaceDistance = 10;
 
     [Header("Preview settings")]
@@ -151,7 +153,7 @@ public class TerrainGenerator : MonoBehaviour
     private void RebuildDirtyChunk()
     {
         if (dirtyChunks.Count == 0) return;
-        dirtyChunks[0].MakeMesh();
+        dirtyChunks[0].BuildMesh();
         dirtyChunks.RemoveAt(0);
     }
 
@@ -201,7 +203,7 @@ public class TerrainGenerator : MonoBehaviour
             }
         }
 
-        MakeMesh();
+        BuildMesh();
     }
 
     /// <summary>
@@ -227,11 +229,11 @@ public class TerrainGenerator : MonoBehaviour
     /// <summary>
     /// Builds mesh of all chunks
     /// </summary>
-    public void MakeMesh()
+    public void BuildMesh()
     {
         foreach (var chunk in chunks.Values)
         {
-            chunk.MakeMesh();
+            chunk.BuildMesh();
         }
     }
 
@@ -248,20 +250,6 @@ public class TerrainGenerator : MonoBehaviour
         }
     }
 
-    [ContextMenu("")]
-    public void test()
-    {
-        var s = new SimplexNoise();
-        double smallest = 2;
-        double biggest = -1;
-        for (int i = 0; i < 10000; i++)
-        {
-            var n = SurfaceNoise(0, i);
-            if (n > biggest) biggest = n;
-            else if (n < smallest) smallest = n;
-        }
-        print(smallest + " " + biggest);
-    }
 
     /// <summary>
     /// Get minSurfaceLevel + perlin noise int for (x, z) * frequency offset by seed
@@ -361,8 +349,13 @@ public class TerrainGenerator : MonoBehaviour
 
         foreach (var chunk in affectedChunks)
         {
-            chunk.MakeMesh();
+            chunk.BuildMesh();
         }
+    }
+
+    public Block PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
+    {
+        return GetChunk(_pos).PlaceBlockSilent(type, _pos, affectedChunks);
     }
 
     /// <summary>

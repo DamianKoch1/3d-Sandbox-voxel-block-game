@@ -172,12 +172,12 @@ public class Player : MonoBehaviour
             }
             else
             {
-                motion.y = 0;
+                motion.y = controller.velocity.y - gravity * Time.deltaTime;
             }
         }
         else
         {
-            motion.y = controller.velocity.y - gravity * Time.deltaTime;
+            motion.y -= gravity * Time.deltaTime;
         }
 
         transform.eulerAngles = new Vector3(0, yaw, 0);
@@ -190,11 +190,11 @@ public class Player : MonoBehaviour
     {
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 4 * gravity * Time.deltaTime); ;
+            motion.y = Mathf.Min(fluid.fallSpeed, motion.y + 4 * gravity * Time.deltaTime);
         }
-        else if (motion.y > -fluid.fallSpeed)
+        else 
         {
-            motion.y = Mathf.Max(-fluid.fallSpeed, motion.y - gravity * Time.deltaTime);
+            motion.y = Mathf.Lerp(motion.y, -fluid.fallSpeed, 0.01f);
         }
     }
 

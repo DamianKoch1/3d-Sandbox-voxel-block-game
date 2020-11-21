@@ -72,7 +72,7 @@ public class Chunk : ChunkMesh
     /// <summary>
     /// Builds visible faces, fluid faces are added to child instead
     /// </summary>
-    public virtual void MakeMesh()
+    public virtual void BuildMesh()
     {
         mesh.Clear();
 
@@ -311,7 +311,7 @@ public class Chunk : ChunkMesh
         if (!IsValidBlockIdx(idx)) return false;
         blocks[idx.x, idx.y, idx.z].OnDestroyed();
         blocks[idx.x, idx.y, idx.z] = null;
-        MakeMesh();
+        BuildMesh();
         UpdateAdjacentChunks(idx);
         return true;
     }
@@ -359,20 +359,24 @@ public class Chunk : ChunkMesh
     /// <param name="_pos">where to place block (world pos)</param>
     /// <param name="affectedChunks">hashset to store affected chunks in</param>
     /// <returns>returns false if spot is blocked by player / occupied by solid block</returns>
-    public bool PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
+    public Block PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
     {
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
         if (!(block is Fluid))
         {
-            if (block != null) return false;
+            if (block != null) return null;
         }
         blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
         blocks[idx.x, idx.y, idx.z].OnPlaced();
-        MakeMesh();
-        UpdateAdjacentChunks(idx);
-        return true;
+        affectedChunks.Add(this);
+        var tg = TerrainGenerator.Instance;
+        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
+        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
+        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
+        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
+        return blocks[idx.x, idx.y, idx.z];
     }
 
     /// <summary>
@@ -382,10 +386,10 @@ public class Chunk : ChunkMesh
     private void UpdateAdjacentChunks(Vector3Int blockIdx)
     {
         var tg = TerrainGenerator.Instance;
-        if (blockIdx.x == 0)                tg.GetChunkByIdx(pos + Vector2Int.left)?.MakeMesh();
-        else if (blockIdx.x == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.right)?.MakeMesh();
-        if (blockIdx.z == 0)                tg.GetChunkByIdx(pos + Vector2Int.down)?.MakeMesh();
-        else if (blockIdx.z == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.up)?.MakeMesh();
+        if (blockIdx.x == 0)                tg.GetChunkByIdx(pos + Vector2Int.left)?.BuildMesh();
+        else if (blockIdx.x == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.right)?.BuildMesh();
+        if (blockIdx.z == 0)                tg.GetChunkByIdx(pos + Vector2Int.down)?.BuildMesh();
+        else if (blockIdx.z == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.up)?.BuildMesh();
     }
 
     /// <summary>
@@ -407,13 +411,14 @@ public class Chunk : ChunkMesh
         var newBlock = BlockFactory.Create(type, blockPos);
         blocks[idx.x, idx.y, idx.z] = newBlock;
         newBlock.OnPlaced();
-        MakeMesh();
+        BuildMesh();
         UpdateAdjacentChunks(idx);
         return newBlock;
     }
 
     private void OnDrawGizmosSelected()
     {
+        if (!TerrainGenerator.Instance.drawGizmos) return;
         Gizmos.color = Color.blue;
         Gizmos.DrawWireCube(new Vector3(pos.x, 0, pos.y) * SIZE + new Vector3(SIZE, HEIGHT, SIZE) * 0.5f, new Vector3(SIZE, HEIGHT, SIZE));
     }
