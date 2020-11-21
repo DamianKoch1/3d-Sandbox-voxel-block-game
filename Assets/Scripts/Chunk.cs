@@ -43,14 +43,14 @@ public class Chunk : ChunkMesh
             for (int z = 0; z < SIZE; z++)
             {
                 var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
-                for (int y = Mathf.Max(localSurfaceLevel, tg.waterLevel); y >= 0; y--)
+                for (int y = Mathf.Max(localSurfaceLevel, tg.config.waterLevel); y >= 0; y--)
                 {
                     Block block = null;
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
-                    else if (y <= Mathf.Max(tg.waterLevel, localSurfaceLevel) - tg.minCaveSurfaceDistance
-                        && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.caveNoiseThreshold)
+                    else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance
+                        && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.config.caveNoiseThreshold)
                     {
                         var above = blocks[x, y + 1, z];
                         if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
@@ -58,10 +58,10 @@ public class Chunk : ChunkMesh
                     }
                     else if (y == localSurfaceLevel)
                     {
-                        if (y >= tg.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
+                        if (y >= tg.config.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
                         else block = BlockFactory.Create(BlockType.Dirt, blockPos);
                     }
-                    else if (y > localSurfaceLevel - tg.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                    else if (y > localSurfaceLevel - tg.config.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
                     else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
                     blocks[x, y, z] = block;
                 }
@@ -396,7 +396,7 @@ public class Chunk : ChunkMesh
     /// <param name="type">what block to place</param>
     /// <param name="_pos">where to place block (world pos)</param>
     /// <returns>returns placed block, returns null if spot is blocked by player / occupied by solid block</returns>
-    public Block PlaceBlock(BlockType type, Vector3 _pos)
+    public Block PlaceBlock(BlockType type, Vector3 _pos, bool ignoreEntities = false)
     {
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
@@ -405,7 +405,7 @@ public class Chunk : ChunkMesh
         {
             if (block != null) return null;
         }
-        if (Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
+        if (!ignoreEntities && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
         var newBlock = BlockFactory.Create(type, blockPos);
         blocks[idx.x, idx.y, idx.z] = newBlock;
         newBlock.OnPlaced();

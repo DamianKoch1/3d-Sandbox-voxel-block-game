@@ -29,8 +29,8 @@ public class TerrainGeneratorEditor : Editor
             fixedWidth = 200,
             fixedHeight = 200
         };
-        if (tg.showSurfaceNoiseSample)  GUILayout.Label(tg.GetSurfaceNoiseSampleTex(), style);
-        if (tg.showCaveNoiseSample)     GUILayout.Label(tg.GetCaveNoiseSampleTex(), style);
+        if (tg.showSurfaceNoiseSample && tg.config)  GUILayout.Label(tg.GetSurfaceNoiseSampleTex(), style);
+        if (tg.showCaveNoiseSample && tg.config)     GUILayout.Label(tg.GetCaveNoiseSampleTex(), style);
         GUILayout.EndHorizontal();
 
 
