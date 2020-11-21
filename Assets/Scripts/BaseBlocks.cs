@@ -11,7 +11,7 @@ public abstract class Block
         Pos = pos;
     }
 
-    public Vector3Int Pos { get; private set; }
+    public Vector3 Pos { get; private set; }
 
     public BlockType Type { get; protected set; }
 
@@ -58,12 +58,12 @@ public abstract class Block
     public List<Block> GetNeighbours()
     {
         List<Block> neighbours = new List<Block>();
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.left));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.right));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.up));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3Int.down));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3Int(0, 0, 1)));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3Int(0, 0, -1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.left));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.right));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.up));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.down));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, 1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, -1)));
         return neighbours;
     }
 
@@ -110,6 +110,8 @@ public abstract class Fluid : Block
     protected readonly float defaultSurface = 0.8f;
     protected readonly float minSurface = 0.1f;
 
+    public virtual bool IsSource { get; protected set; }
+
     protected float S => Mathf.Lerp(defaultSurface, minSurface, (float)currHorizontalFlow / maxHorizontalFlow);
 
     public Fluid(Vector3Int pos) : base(pos)
@@ -118,6 +120,7 @@ public abstract class Fluid : Block
         defaultSurface = 0.8f;
         minSurface = 0.1f;
         CanPlaceInEntity = true;
+        IsSource = true;
     }
 
     public override bool DrawFaceNextTo(Block neighbour)
@@ -130,6 +133,42 @@ public abstract class Fluid : Block
     {
         base.OnBlockUpdate();
         TryFlow();
+        TryDisappear();
+    }
+
+    protected async void TryDisappear()
+    {
+        if (IsSource) return;
+        await Task.Delay((int)(tickInterval * 1000));
+
+        var affectedChunks = new HashSet<Chunk>();
+
+        var up = TerrainGenerator.Instance.GetBlock(Pos + Vector3.up);
+        if (up is Fluid) return;
+        var sideNeighbours = new List<Block>();
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.left));
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.right));
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, 1)));
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, -1)));
+        foreach (var block in sideNeighbours)
+        {
+            if (block is Fluid && (block as Fluid).currHorizontalFlow < currHorizontalFlow) return;
+        }
+        if (currHorizontalFlow >= maxHorizontalFlow)
+        {
+            TerrainGenerator.Instance.DestroyBlockSilent(Pos, affectedChunks);
+        }
+        else
+        {
+            currHorizontalFlow++;
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + Vector3.left));
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + Vector3.right));
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, 1)));
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, -1)));
+            UpdateNeighbours();
+            TryDisappear();
+        }
+        foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
     }
 
     #region Flowing
@@ -152,6 +191,7 @@ public abstract class Fluid : Block
         if (blockBelow is Fluid)
         {
             ((Fluid)blockBelow).currHorizontalFlow = 0;
+            blockBelow.OnBlockUpdate();
             return;
         }
         if (currHorizontalFlow >= maxHorizontalFlow) return;
@@ -177,13 +217,18 @@ public abstract class Fluid : Block
             if (block is Fluid)
             {
                 var fluid = (Fluid)block;
-                fluid.currHorizontalFlow = Mathf.Min(fluid.currHorizontalFlow, newFlowAmount);
+                if (fluid.currHorizontalFlow > newFlowAmount)
+                {
+                    fluid.currHorizontalFlow = Mathf.Min(fluid.currHorizontalFlow, newFlowAmount);
+                    fluid.TryFlow();
+                }
             }
             return;
         }
         var newFluid = TerrainGenerator.Instance.PlaceBlockSilent(Type, newPos, affectedChunks);
         if (!(newFluid is Fluid)) return;
-        ((Fluid)newFluid).currHorizontalFlow = newFlowAmount;
+        (newFluid as Fluid).currHorizontalFlow = newFlowAmount;
+        (newFluid as Fluid).IsSource = false;
     }
     #endregion
 

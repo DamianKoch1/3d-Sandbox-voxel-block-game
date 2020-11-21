@@ -339,6 +339,11 @@ public class TerrainGenerator : MonoBehaviour
         return chunk.DestroyBlock(pos);
     }
 
+    public bool DestroyBlockSilent(Vector3 pos, HashSet<Chunk> affectedChunks)
+    {
+        return GetChunk(pos)?.DestroyBlockSilent(pos, affectedChunks, true) == true;
+    }
+
     /// <summary>
     /// Remove blocks at each position, rebuilds mesh of affected chunks only when finished
     /// </summary>
