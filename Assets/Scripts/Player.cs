@@ -117,7 +117,8 @@ public class Player : MonoBehaviour
 
     private void CheckIfSwimming()
     {
-        var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position - Vector3.up * 0.05f);
+        //TODO add Block.IsInside(Vector3 offset (0-1)) for eg water
+        var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position + Vector3.up * 0.2f);
         if (headBlock is Fluid)
         {
             fluid = (Fluid)headBlock;
@@ -194,7 +195,7 @@ public class Player : MonoBehaviour
         }
         else 
         {
-            motion.y = Mathf.Lerp(motion.y, -fluid.FallSpeed, 0.01f);
+            motion.y = Mathf.Lerp(motion.y, -fluid.FallSpeed, Time.deltaTime);
         }
     }
 

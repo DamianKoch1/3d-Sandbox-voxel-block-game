@@ -308,8 +308,8 @@ public class Chunk : ChunkMesh
         {
             if (block != null) return null;
         }
-        if (!ignoreEntities && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
         var newBlock = BlockFactory.Create(type, blockPos);
+        if (!ignoreEntities && !newBlock.CanPlaceInEntity && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
         blocks[idx.x, idx.y, idx.z] = newBlock;
         newBlock.OnPlaced();
         BuildMesh();

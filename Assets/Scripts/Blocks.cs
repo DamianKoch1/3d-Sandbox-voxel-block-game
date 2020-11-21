@@ -40,7 +40,7 @@ public class Water : Fluid
     {
         Type = BlockType.Water;
         FallSpeed = 3;
-        maxHorizontalFlow = 3;
+        maxHorizontalFlow = 5;
     }
 }
 

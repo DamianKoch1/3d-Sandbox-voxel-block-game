@@ -32,4 +32,4 @@ MonoBehaviour:
       frequency: 0.173
       amplitude: 0.17
   caveNoiseThreshold: 0.768
-  minCaveSurfaceDistance: 5
+  minCaveSurfaceDistance: 2
