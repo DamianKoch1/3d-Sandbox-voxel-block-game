@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class TerrainGenerator : MonoBehaviour
@@ -57,17 +58,28 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField]
     private Vector2Int playerChunkPos;
 
-    private List<Chunk> dirtyChunks;
+    private Stack<Chunk> dirtyChunks;
 
-    private void Start()
+    private async void Start()
     {
-        Generate();
+        if (!Instance) instance = this;
+        await Generate();
         player = FindObjectOfType<Player>();
         player.Initialize();
         playerChunkPos = GetChunk(player.transform.position).pos;
-        dirtyChunks = new List<Chunk>();
+        dirtyChunks = new Stack<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
+        RebuildDirtyChunks();
         InvokeRepeating(nameof(RebuildDirtyChunk), 1, meshBuildingInterval);
+    }
+
+    private async void RebuildDirtyChunks()
+    {
+        while (!ThreadingUtils.QuitToken.IsCancellationRequested)
+        {
+            await Task.Delay((int)(meshBuildingInterval * 1000));
+            await RebuildDirtyChunk();
+        }
     }
 
     /// <summary>
@@ -131,11 +143,11 @@ public class TerrainGenerator : MonoBehaviour
     /// <summary>
     /// Builds the mesh for the oldest dirty chunk and removes it from the dirty list
     /// </summary>
-    private void RebuildDirtyChunk()
+    private async Task RebuildDirtyChunk()
     {
         if (dirtyChunks.Count == 0) return;
-        dirtyChunks[0].BuildMesh();
-        dirtyChunks.RemoveAt(0);
+        var chunk = dirtyChunks.Pop();
+        await chunk.BuildMesh();
     }
 
     /// <summary>
@@ -160,13 +172,13 @@ public class TerrainGenerator : MonoBehaviour
     {
         if (c == null) return;
         if (dirtyChunks.Contains(c)) return;
-        dirtyChunks.Add(c);
+        dirtyChunks.Push(c);
     }
 
     /// <summary>
     /// Generates starting chunks
     /// </summary>
-    public void Generate()
+    public async Task Generate()
     {
         Clear();
 
@@ -184,37 +196,39 @@ public class TerrainGenerator : MonoBehaviour
             }
         }
 
-        BuildMesh();
+        await BuildMesh();
     }
 
     /// <summary>
     /// Generates a chunk without building its mesh, use this for preloading / initial generation
     /// </summary>
     /// <param name="_idx"></param>
-    private void GenerateChunk(Vector2Int _idx)
+    private Chunk GenerateChunk(Vector2Int _idx)
     {
         var chunk = Instantiate(chunkPrefab, transform);
         chunk.Initialize(_idx);
+        chunk.Generate();
         chunks[_idx] = chunk;
+        return chunk;
     }
 
     /// <summary>
     /// Generates a chunk without building its mesh
     /// </summary>
     /// <param name="_idx"></param>
-    private void GenerateChunk(int x, int z)
+    private Chunk GenerateChunk(int x, int z)
     {
-        GenerateChunk(new Vector2Int(x, z));
+        return GenerateChunk(new Vector2Int(x, z));
     }
 
     /// <summary>
     /// Builds mesh of all chunks
     /// </summary>
-    public void BuildMesh()
+    public async Task BuildMesh()
     {
         foreach (var chunk in chunks.Values)
         {
-            chunk.BuildMesh();
+            await chunk.BuildMesh();
         }
     }
 
@@ -274,10 +288,12 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public Chunk GetChunk(float x, float z)
     {
-        var chunkPos = new Vector2Int(Mathf.FloorToInt(x / Chunk.SIZE), Mathf.FloorToInt(z / Chunk.SIZE));
-        if (!chunks.ContainsKey(chunkPos)) return null;
-        return chunks[chunkPos];
+        var chunkIdx = GetChunkIdx(x, z);
+        if (!chunks.ContainsKey(chunkIdx)) return null;
+        return chunks[chunkIdx];
     }
+
+    private Vector2Int GetChunkIdx(float x, float z) => new Vector2Int(Mathf.FloorToInt(x / Chunk.SIZE), Mathf.FloorToInt(z / Chunk.SIZE));
 
     /// <summary>
     /// Get the chunk with given index, returns null if not generated yet
@@ -315,13 +331,15 @@ public class TerrainGenerator : MonoBehaviour
         if (pos.y <= 0) return null;
         if (pos.y >= Chunk.HEIGHT) return null;
         var chunk = GetChunk(pos);
-        if (!chunk) return null;
+        if (!chunk) chunk = GenerateChunk(GetChunkIdx(pos.x, pos.z));
         return chunk.PlaceBlock(type, pos, ignoreEntities);
     }
 
-    public Block PlaceBlockSilent(BlockType type, Vector3 _pos, HashSet<Chunk> affectedChunks)
+    public Block PlaceBlockSilent(BlockType type, Vector3 pos, HashSet<Chunk> affectedChunks)
     {
-        return GetChunk(_pos).PlaceBlockSilent(type, _pos, affectedChunks);
+        var chunk = GetChunk(pos);
+        if (!chunk) chunk = GenerateChunk(GetChunkIdx(pos.x, pos.z));
+        return chunk.PlaceBlockSilent(type, pos, affectedChunks);
     }
     #endregion
 
@@ -334,13 +352,15 @@ public class TerrainGenerator : MonoBehaviour
     public bool DestroyBlock(Vector3 pos)
     {
         var chunk = GetChunk(pos);
-        if (!chunk) return false;
+        if (!chunk) GenerateChunk(GetChunkIdx(pos.x, pos.z));
         return chunk.DestroyBlock(pos);
     }
 
     public bool DestroyBlockSilent(Vector3 pos, HashSet<Chunk> affectedChunks)
     {
-        return GetChunk(pos)?.DestroyBlockSilent(pos, affectedChunks, true) == true;
+        var chunk = GetChunk(pos);
+        if (!chunk) GenerateChunk(GetChunkIdx(pos.x, pos.z));
+        return GetChunk(pos).DestroyBlockSilent(pos, affectedChunks, true) == true;
     }
 
     /// <summary>
@@ -354,7 +374,7 @@ public class TerrainGenerator : MonoBehaviour
         foreach (var pos in positions)
         {
             var chunk = GetChunk(pos);
-            if (!chunk) continue;
+            if (!chunk) GenerateChunk(GetChunkIdx(pos.x, pos.z));
             chunk.DestroyBlockSilent(pos, affectedChunks, includeFluids);
         }
 
@@ -371,7 +391,7 @@ public class TerrainGenerator : MonoBehaviour
     public Texture2D GetSurfaceNoiseSampleTex()
     {
         if (surfaceSample != null && !updateSurfaceSample) return surfaceSample;
-            
+
         var size = noiseSampleSize - noiseSampleSize % noiseUnitPerPix;
         int offset = size / 2;
         surfaceSample = new Texture2D(size, size, TextureFormat.RGB24, false);
@@ -409,7 +429,7 @@ public class TerrainGenerator : MonoBehaviour
                 }
                 for (int x1 = 0; x1 < noiseUnitPerPix; x1++)
                     for (int y1 = 0; y1 < noiseUnitPerPix; y1++)
-                        caveSample.SetPixel(x+x1, y+y1, c);
+                        caveSample.SetPixel(x + x1, y + y1, c);
             }
         }
         caveSample.Apply();

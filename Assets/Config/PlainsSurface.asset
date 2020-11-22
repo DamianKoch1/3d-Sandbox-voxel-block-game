@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlainsSurface
   m_EditorClassIdentifier: 
   seed: 0
-  frequency: 0.0313
+  frequency: 0.0276
   amplitude: 20.2
   layers:
   - weight: 1

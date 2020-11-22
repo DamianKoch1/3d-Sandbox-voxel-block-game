@@ -17,6 +17,8 @@ public abstract class Block
 
     protected virtual float TickInterval => 0.5f;
 
+    public virtual float BlastResistance => 0.3f;
+
     protected async Task<bool> Tick()
     {
         await Task.Delay((int)(TickInterval * 1000));

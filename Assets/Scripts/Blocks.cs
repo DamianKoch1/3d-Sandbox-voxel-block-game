@@ -20,6 +20,8 @@ public class Dirt : BlockOpaque
 
 public class Stone : BlockOpaque
 {
+    public override float BlastResistance => 0.7f;
+
     public Stone(Vector3 pos) : base(pos)
     {
         Type = BlockType.Stone;
@@ -28,6 +30,8 @@ public class Stone : BlockOpaque
 
 public class BottomStone : BlockOpaque
 {
+    public override float BlastResistance => 1f;
+
     public BottomStone(Vector3 pos) : base(pos)
     {
         Type = BlockType.BottomStone;
@@ -78,7 +82,9 @@ public class Glass : BlockTransparent
 
 public class TNT : BlockOpaque, IUseable
 {
-    private int range = 2;
+    protected virtual int Range => 10;
+
+    protected virtual float Scattering => 2;
 
     public TNT(Vector3 pos) : base(pos)
     {
@@ -88,15 +94,20 @@ public class TNT : BlockOpaque, IUseable
     public void OnUsed()
     {
         List<Vector3> blocksToDestroy = new List<Vector3>();
-        for (int y = -range; y <= range; y++)
+        for (int y = -Range; y <= Range; y++)
         {
             if (Pos.y + y < 0) continue;
             if (Pos.y + y >= Chunk.HEIGHT) continue;
-            for (int x = -range; x <= range; x++)
+            for (int x = -Range; x <= Range; x++)
             {
-                for (int z = -range; z <= range; z++)
+                for (int z = -Range; z <= Range; z++)
                 {
-                    blocksToDestroy.Add(Pos + new Vector3Int(x, y, z));
+                    var pos = new Vector3(x, y, z);
+                    var sqrMg = pos.sqrMagnitude + Random.Range(-Range * Scattering, Range * Scattering);
+                    if (sqrMg > Range * Range) continue;
+                    var block = TerrainGenerator.Instance.GetBlock(Pos + pos);
+                    if (block == null || block is Fluid || 1 - (sqrMg / Range) / Range <= block.BlastResistance * block.BlastResistance) continue;
+                    blocksToDestroy.Add(Pos + pos);
                 }
             }
         }

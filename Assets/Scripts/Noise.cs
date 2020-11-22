@@ -3,7 +3,25 @@
 [CreateAssetMenu]
 public class Noise : ScriptableObject
 {
-    public long seed;
+#if UNITY_EDITOR
+    private static string copied;
+
+    [ContextMenu("Copy")]
+    private void Copy()
+    {
+        copied = JsonUtility.ToJson(this);
+    }
+
+    [ContextMenu("Paste")]
+    private void Paste()
+    {
+        if (string.IsNullOrEmpty(copied)) return;
+        JsonUtility.FromJsonOverwrite(copied, this);
+    }
+
+#endif
+
+    public int seed;
 
     [Range(0, 0.15f)]
     public float frequency = 0.01f;
@@ -26,7 +44,7 @@ public class Noise : ScriptableObject
 
     public void RandomizeSeed()
     {
-        seed = (long)Random.Range(0f, 100000f);
+        seed = Random.Range(0, 1000000);
     }
 
     public float GetValue(float x, float z)

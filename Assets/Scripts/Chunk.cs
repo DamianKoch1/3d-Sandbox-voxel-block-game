@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class Chunk : ChunkMesh
@@ -27,55 +28,57 @@ public class Chunk : ChunkMesh
         transparentMesh.Initialize();
         transform.position = new Vector3(pos.x * SIZE, 0, pos.y * SIZE);
         gameObject.name = "Chunk " + pos;
-        Generate();
     }
 
     /// <summary>
     /// Generates blocks / water using TerrainGenerator settings / noise
     /// </summary>
-    public virtual void Generate()
+    public virtual Task Generate()
     {
-        blocks = new Block[SIZE, HEIGHT, SIZE];
-        var tg = TerrainGenerator.Instance;
-        for (int x = 0; x < SIZE; x++)
+        return Task.Run(() =>
         {
-            for (int z = 0; z < SIZE; z++)
+            blocks = new Block[SIZE, HEIGHT, SIZE];
+            var tg = TerrainGenerator.Instance;
+            for (int x = 0; x < SIZE; x++)
             {
-                var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
-                for (int y = Mathf.Max(localSurfaceLevel, tg.config.waterLevel); y >= 0; y--)
+                for (int z = 0; z < SIZE; z++)
                 {
-                    Block block = null;
-                    var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
-                    if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
-                    else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
-                    else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance 
-                        && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.config.caveNoiseThreshold)
+                    var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
+                    for (int y = Mathf.Max(localSurfaceLevel, tg.config.waterLevel); y >= 0; y--)
                     {
-                        if (y < tg.config.lavaLevel) block = BlockFactory.Create(BlockType.Lava, blockPos);
-                        else
+                        Block block = null;
+                        var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
+                        if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
+                        else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
+                        else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance
+                            && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.config.caveNoiseThreshold)
                         {
-                            var above = blocks[x, y + 1, z];
-                            if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
-                            else continue;
+                            if (y < tg.config.lavaLevel) block = BlockFactory.Create(BlockType.Lava, blockPos);
+                            else
+                            {
+                                var above = blocks[x, y + 1, z];
+                                if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
+                                else continue;
+                            }
                         }
+                        else if (y == localSurfaceLevel)
+                        {
+                            if (y >= tg.config.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
+                            else block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                        }
+                        else if (y > localSurfaceLevel - tg.config.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                        else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
+                        blocks[x, y, z] = block;
                     }
-                    else if (y == localSurfaceLevel)
-                    {
-                        if (y >= tg.config.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
-                        else block = BlockFactory.Create(BlockType.Dirt, blockPos);
-                    }
-                    else if (y > localSurfaceLevel - tg.config.dirtLayerSize + Random.Range(0, 2)) block = BlockFactory.Create(BlockType.Dirt, blockPos);
-                    else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
-                    blocks[x, y, z] = block;
                 }
             }
-        }
+        });
     }
 
     /// <summary>
     /// Builds visible faces, fluid faces are added to child instead
     /// </summary>
-    public virtual void BuildMesh()
+    public virtual async Task BuildMesh()
     {
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
@@ -94,156 +97,159 @@ public class Chunk : ChunkMesh
         List<int> triList;
         List<Vector2> uvList;
 
-        for (int x = 0; x < SIZE; x++)
+        await Task.Run(() =>
         {
-            for (int z = 0; z < SIZE; z++)
+            for (int x = 0; x < SIZE; x++)
             {
-                for (int y = 0; y < HEIGHT; y++)
+                for (int z = 0; z < SIZE; z++)
                 {
-                    var block = blocks[x, y, z];
-                    if (block == null) continue;
-                    if (block is Fluid)
+                    for (int y = 0; y < HEIGHT; y++)
                     {
-                        vertexList = fluidVertices;
-                        triList = fluidTriangles;
-                        uvList = fluidUVs;
-                    }
-                    else if (block is BlockTransparent)
-                    {
-                        vertexList = transparentVertices;
-                        triList = transparentTriangles;
-                        uvList = transparentUVs;
-                    }
-                    else
-                    {
-                        vertexList = vertices;
-                        triList = triangles;
-                        uvList = UVs;
-                    }
-
-                    var blockIdx = new Vector3(x, y, z);
-                    int numFaces = 0;
-                    Block neighbour;
-
-                    if (z == 0)
-                    {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.forward);
-                    }
-                    else
-                    {
-                        neighbour = blocks[x, y, z - 1];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.South, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.South, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.South));
-                        numFaces++;
-                    }
-
-
-                    if (z == SIZE - 1)
-                    {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.forward);
-                    }
-                    else
-                    {
-                        neighbour = blocks[x, y, z + 1];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.North, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.North, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.North));
-                        numFaces++;
-                    }
-
-
-                    if (x == 0)
-                    {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.right);
-                    }
-                    else
-                    {
-                        neighbour = blocks[x - 1, y, z];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.West, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.West, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.West));
-                        numFaces++;
-                    }
-
-
-                    if (x == SIZE - 1)
-                    {
-                        neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.right);
-                    }
-                    else
-                    {
-                        neighbour = blocks[x + 1, y, z];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.East, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.East, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.East));
-                        numFaces++;
-                    }
-
-
-                    if (y == 0)
-                    {
-                        neighbour = null;
-                    }
-                    else
-                    {
-                        neighbour = blocks[x, y - 1, z];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.Down, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.Down, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.Down));
-                        numFaces++;
-                    }
-
-                    if (y == HEIGHT - 1)
-                    {
-                        neighbour = null;
-                    }
-                    else
-                    {
-                        neighbour = blocks[x, y + 1, z];
-                    }
-
-                    if (block.DrawFaceNextTo(Direction.Up, neighbour))
-                    {
-                        foreach (var vertex in block.GetVertices(Direction.Up, neighbour))
-                            vertexList.Add(blockIdx + vertex);
-                        uvList.AddRange(block.GetUVs(Direction.Up));
-                        numFaces++;
-                    }
-
-                    int triangleIdx = vertexList.Count - numFaces * 4;
-                    for (int i = 0; i < numFaces; i++)
-                    {
-                        int i4 = i * 4;
-                        triList.AddRange(new int[]
+                        var block = blocks[x, y, z];
+                        if (block == null) continue;
+                        if (block is Fluid)
                         {
+                            vertexList = fluidVertices;
+                            triList = fluidTriangles;
+                            uvList = fluidUVs;
+                        }
+                        else if (block is BlockTransparent)
+                        {
+                            vertexList = transparentVertices;
+                            triList = transparentTriangles;
+                            uvList = transparentUVs;
+                        }
+                        else
+                        {
+                            vertexList = vertices;
+                            triList = triangles;
+                            uvList = UVs;
+                        }
+
+                        var blockIdx = new Vector3(x, y, z);
+                        int numFaces = 0;
+                        Block neighbour;
+
+                        if (z == 0)
+                        {
+                            neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.forward);
+                        }
+                        else
+                        {
+                            neighbour = blocks[x, y, z - 1];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.South, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.South, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.South));
+                            numFaces++;
+                        }
+
+
+                        if (z == SIZE - 1)
+                        {
+                            neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.forward);
+                        }
+                        else
+                        {
+                            neighbour = blocks[x, y, z + 1];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.North, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.North, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.North));
+                            numFaces++;
+                        }
+
+
+                        if (x == 0)
+                        {
+                            neighbour = TerrainGenerator.Instance.GetBlock(block.Pos - Vector3.right);
+                        }
+                        else
+                        {
+                            neighbour = blocks[x - 1, y, z];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.West, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.West, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.West));
+                            numFaces++;
+                        }
+
+
+                        if (x == SIZE - 1)
+                        {
+                            neighbour = TerrainGenerator.Instance.GetBlock(block.Pos + Vector3.right);
+                        }
+                        else
+                        {
+                            neighbour = blocks[x + 1, y, z];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.East, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.East, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.East));
+                            numFaces++;
+                        }
+
+
+                        if (y == 0)
+                        {
+                            neighbour = null;
+                        }
+                        else
+                        {
+                            neighbour = blocks[x, y - 1, z];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.Down, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.Down, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.Down));
+                            numFaces++;
+                        }
+
+                        if (y == HEIGHT - 1)
+                        {
+                            neighbour = null;
+                        }
+                        else
+                        {
+                            neighbour = blocks[x, y + 1, z];
+                        }
+
+                        if (block.DrawFaceNextTo(Direction.Up, neighbour))
+                        {
+                            foreach (var vertex in block.GetVertices(Direction.Up, neighbour))
+                                vertexList.Add(blockIdx + vertex);
+                            uvList.AddRange(block.GetUVs(Direction.Up));
+                            numFaces++;
+                        }
+
+                        int triangleIdx = vertexList.Count - numFaces * 4;
+                        for (int i = 0; i < numFaces; i++)
+                        {
+                            int i4 = i * 4;
+                            triList.AddRange(new int[]
+                            {
                             triangleIdx + i4, triangleIdx + i4 + 1, triangleIdx + i4 + 2,
                             triangleIdx + i4, triangleIdx + i4 + 2, triangleIdx + i4 + 3
-                        });
+                            });
+                        }
                     }
                 }
             }
-        }
+        });
         fluidMesh.ApplyMesh(fluidVertices, fluidTriangles, fluidUVs);
 
         transparentMesh.ApplyMesh(transparentVertices, transparentTriangles, transparentUVs);
@@ -380,9 +386,9 @@ public class Chunk : ChunkMesh
         blocks[idx.x, idx.y, idx.z] = null;
         affectedChunks.Add(this);
         var tg = TerrainGenerator.Instance;
-        if (idx.x == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
+        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
         else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
-        if (idx.z == 0)             affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
+        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
         else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
         return true;
     }
@@ -395,10 +401,10 @@ public class Chunk : ChunkMesh
     private void UpdateAdjacentChunks(Vector3Int blockIdx)
     {
         var tg = TerrainGenerator.Instance;
-        if (blockIdx.x == 0)                tg.GetChunkByIdx(pos + Vector2Int.left)?.BuildMesh();
-        else if (blockIdx.x == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.right)?.BuildMesh();
-        if (blockIdx.z == 0)                tg.GetChunkByIdx(pos + Vector2Int.down)?.BuildMesh();
-        else if (blockIdx.z == SIZE - 1)    tg.GetChunkByIdx(pos + Vector2Int.up)?.BuildMesh();
+        if (blockIdx.x == 0) tg.GetChunkByIdx(pos + Vector2Int.left)?.BuildMesh();
+        else if (blockIdx.x == SIZE - 1) tg.GetChunkByIdx(pos + Vector2Int.right)?.BuildMesh();
+        if (blockIdx.z == 0) tg.GetChunkByIdx(pos + Vector2Int.down)?.BuildMesh();
+        else if (blockIdx.z == SIZE - 1) tg.GetChunkByIdx(pos + Vector2Int.up)?.BuildMesh();
     }
 
     private void OnDrawGizmosSelected()
