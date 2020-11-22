@@ -17,13 +17,23 @@ public abstract class Block
 
     public bool CanPlaceInEntity { get; protected set; } = false;
 
+    protected float tickInterval = 0.5f;
+
+    protected async Task<bool> Tick()
+    {
+        await Task.Delay((int)(tickInterval * 1000));
+        //don't tick if exiting playmode
+        return !ThreadingUtils.QuitToken.IsCancellationRequested;
+    }
+
+
 
     /// <summary>
     /// Should a face be drawn when given block is next to it?
     /// </summary>
     /// <param name="neighbour">neighbour block</param>
     /// <returns></returns>
-    public abstract bool DrawFaceNextTo(Block neighbour);
+    public abstract bool DrawFaceNextTo(Direction dir, Block neighbour);
 
     public virtual Vector3[] GetVertices(Direction dir, Block neighbour)
     {
@@ -81,7 +91,7 @@ public abstract class BlockOpaque : Block
     public BlockOpaque(Vector3Int pos) : base(pos)
     { }
 
-    public override bool DrawFaceNextTo(Block neighbour)
+    public override bool DrawFaceNextTo(Direction dir, Block neighbour)
     {
         return !(neighbour is BlockOpaque);
     }
@@ -92,7 +102,7 @@ public abstract class BlockTransparent : Block
     public BlockTransparent(Vector3Int pos) : base(pos)
     { }
 
-    public override bool DrawFaceNextTo(Block neighbour)
+    public override bool DrawFaceNextTo(Direction dir, Block neighbour)
     {
         return !(neighbour is BlockTransparent);
     }
@@ -100,15 +110,32 @@ public abstract class BlockTransparent : Block
 
 public abstract class Fluid : Block
 {
-    public float FallSpeed { get; protected set; } = 3;
+    public float SinkSpeed { get; protected set; } = 3;
 
-    protected float tickInterval = 0.5f;
-
+    /// <summary>
+    /// How many blocks already flown away from nearest source
+    /// </summary>
     protected int currHorizontalFlow = 0;
+
+    /// <summary>
+    /// Max amount of blocks it can flow away from nearest source
+    /// </summary>
     protected int maxHorizontalFlow = 2;
 
-    protected readonly float defaultSurface = 0.8f;
-    protected readonly float minSurface = 0.1f;
+    /// <summary>
+    /// Surface height of source block
+    /// </summary>
+    protected float defaultSurface = 0.8f;
+
+    /// <summary>
+    /// Surface height of block with max horizontal flow
+    /// </summary>
+    protected float minSurface = 0.1f;
+
+    /// <summary>
+    /// Wether blocks next to 2 sources can become a source themselves
+    /// </summary>
+    protected bool canCombineToSource = true;
 
     public virtual bool IsSource { get; protected set; }
 
@@ -121,25 +148,41 @@ public abstract class Fluid : Block
         minSurface = 0.1f;
         CanPlaceInEntity = true;
         IsSource = true;
+        canCombineToSource = true;
     }
 
-    public override bool DrawFaceNextTo(Block neighbour)
+    public override bool DrawFaceNextTo(Direction dir, Block neighbour)
     {
+        if (dir == Direction.Up) return neighbour is Fluid == false;
         return neighbour == null || neighbour is BlockTransparent;
     }
 
-    //TODO if no neighbours with lower flow level increase flow level, if at max remove
     public override void OnBlockUpdate()
     {
         base.OnBlockUpdate();
         TryFlow();
-        TryDisappear();
+        CheckForSource();
     }
 
-    protected async void TryDisappear()
+    protected float GetMaxFlow(params Block[] blocks)
+    {
+        float max = S;
+        foreach (var block in blocks)
+            if (block is Fluid)
+                max = Mathf.Max(max, (block as Fluid).S);
+
+        return max;
+    }
+
+    #region Behaviour
+    /// <summary>
+    /// Gradually removes fluid without nearby source
+    /// </summary>
+    protected async void CheckForSource()
     {
         if (IsSource) return;
-        await Task.Delay((int)(tickInterval * 1000));
+        if (!await Tick()) return;
+        if (IsSource) return;
 
         var affectedChunks = new HashSet<Chunk>();
 
@@ -166,18 +209,17 @@ public abstract class Fluid : Block
             affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, 1)));
             affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, -1)));
             UpdateNeighbours();
-            TryDisappear();
+            CheckForSource();
         }
         foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
     }
 
-    #region Flowing
     /// <summary>
-    /// Waits for tickInterval seconds, if block below is air flow to it, if it is solid flow to unoccupied sides until maxHorizontalFlow is reached
+    /// If block below is air flow to it, if it is solid flow to unoccupied sides until maxHorizontalFlow is reached
     /// </summary>
     protected async void TryFlow()
     {
-        await Task.Delay((int)(tickInterval * 1000));
+        if (!await Tick()) return;
 
         var affectedChunks = new HashSet<Chunk>();
 
@@ -186,13 +228,13 @@ public abstract class Fluid : Block
         {
             TryFlowToDir(Vector3Int.down, 0, affectedChunks);
             foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
-            return;
+            if (!IsSource) return;
         }
         if (blockBelow is Fluid)
         {
             ((Fluid)blockBelow).currHorizontalFlow = 0;
             blockBelow.OnBlockUpdate();
-            return;
+            if (!IsSource) return;
         }
         if (currHorizontalFlow >= maxHorizontalFlow) return;
 
@@ -204,7 +246,8 @@ public abstract class Fluid : Block
     }
 
     /// <summary>
-    /// If pos + dir is free, places fluid there and sets its currHorizontalFlow to smaller value of either its own or newFlowAmount
+    /// If pos + dir is free, places fluid there and sets its currHorizontalFlow to smaller value of either its own or newFlowAmount.
+    /// If it is fluid, update its currHorizontalFlow and try to make it a source
     /// </summary>
     /// <param name="dir">direction to flow in</param>
     /// <param name="newFlowAmount"></param>
@@ -212,35 +255,69 @@ public abstract class Fluid : Block
     {
         var newPos = Pos + dir;
         var block = TerrainGenerator.Instance.GetBlock(newPos);
+        Fluid f;
         if (block != null)
         {
             if (block is Fluid)
             {
-                var fluid = (Fluid)block;
-                if (fluid.currHorizontalFlow > newFlowAmount)
+                f = block as Fluid;
+                if (TryMakeSource(f, dir)) return;
+                if (f.currHorizontalFlow > newFlowAmount)
                 {
-                    fluid.currHorizontalFlow = Mathf.Min(fluid.currHorizontalFlow, newFlowAmount);
-                    fluid.TryFlow();
+                    f.currHorizontalFlow = Mathf.Min(f.currHorizontalFlow, newFlowAmount);
+                    f.TryFlow();
                 }
             }
             return;
         }
         var newFluid = TerrainGenerator.Instance.PlaceBlockSilent(Type, newPos, affectedChunks);
         if (!(newFluid is Fluid)) return;
-        (newFluid as Fluid).currHorizontalFlow = newFlowAmount;
-        (newFluid as Fluid).IsSource = false;
+        f = newFluid as Fluid;
+        if (TryMakeSource(f, dir)) return;
+        f.currHorizontalFlow = newFlowAmount;
+        f.IsSource = false;
+    }
+
+    /// <summary>
+    /// Tries to make f to a source if enabled and 2+ source neighbours
+    /// </summary>
+    /// <param name="f">Fluid to try to make a source</param>
+    /// <param name="dir">Direction of f in relation to neighbouring source</param>
+    /// <returns></returns>
+    protected bool TryMakeSource(Fluid f, Vector3Int dir)
+    {
+        if (!canCombineToSource || !IsSource || f.IsSource) return false;
+        var dir2 = TerrainGenerator.Instance.GetBlock(f.Pos + dir);
+        if (dir2 is Fluid && (dir2 as Fluid).IsSource)
+        {
+            f.MakeSource();
+            return true;
+        }
+        var cross = dir.x != 0 ? new Vector3Int(0, 0, 1) : Vector3Int.right;
+        var cross1 = TerrainGenerator.Instance.GetBlock(f.Pos + cross);
+        if (cross1 is Fluid && (cross1 as Fluid).IsSource)
+        {
+            f.MakeSource();
+            return true;
+        }
+        var cross2 = TerrainGenerator.Instance.GetBlock(f.Pos - cross);
+        if (cross2 is Fluid && (cross2 as Fluid).IsSource)
+        {
+            f.MakeSource();
+            return true;
+        }
+        return false;
+    }
+
+    protected async void MakeSource()
+    {
+        if (!await Tick()) return;
+        IsSource = true;
+        currHorizontalFlow = 0;
+        OnBlockUpdate();
+        TerrainGenerator.Instance.MarkDirty(TerrainGenerator.Instance.GetChunk(Pos));
     }
     #endregion
-
-    private float GetMaxFlow(params Block[] blocks)
-    {
-        float max = S;
-        foreach (var block in blocks)
-            if (block is Fluid)
-                max = Mathf.Max(max, (block as Fluid).S);
-
-        return max;
-    }
 
     public override Vector3[] GetVertices(Direction dir, Block neighbour)
     {
@@ -248,7 +325,7 @@ public abstract class Fluid : Block
             return base.GetVertices(dir, neighbour);
 
         Block f, b, l, r, fl, fr, bl, br, fu, bu, lu, ru, flu, fru, blu, bru;
-        
+
         //TODO test performance of this, maybe keep neighbours saved and recalculate on change
         switch (dir)
         {

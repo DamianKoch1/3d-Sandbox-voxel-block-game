@@ -130,7 +130,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x, y, z - 1];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.South, neighbour))
                     {
                         //front
                         foreach (var vertex in block.GetVertices(Direction.South, neighbour))
@@ -149,7 +149,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x, y, z + 1];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.North, neighbour))
                     {
                         //back
                         foreach (var vertex in block.GetVertices(Direction.North, neighbour))
@@ -168,7 +168,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x - 1, y, z];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.West, neighbour))
                     {
                         //left
                         foreach (var vertex in block.GetVertices(Direction.West, neighbour))
@@ -187,7 +187,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x + 1, y, z];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.East, neighbour))
                     {
                         //right
                         foreach (var vertex in block.GetVertices(Direction.East, neighbour))
@@ -206,7 +206,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x, y - 1, z];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.Down, neighbour))
                     {
                         //bottom
                         foreach (var vertex in block.GetVertices(Direction.Down, neighbour))
@@ -224,7 +224,7 @@ public class Chunk : ChunkMesh
                         neighbour = blocks[x, y + 1, z];
                     }
 
-                    if (block.DrawFaceNextTo(neighbour))
+                    if (block.DrawFaceNextTo(Direction.Up, neighbour))
                     {
                         //top
                         foreach (var vertex in block.GetVertices(Direction.Up, neighbour))

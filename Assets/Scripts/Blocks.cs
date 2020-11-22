@@ -39,7 +39,7 @@ public class Water : Fluid
     public Water(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Water;
-        FallSpeed = 3;
+        SinkSpeed = 3;
         maxHorizontalFlow = 5;
     }
 }

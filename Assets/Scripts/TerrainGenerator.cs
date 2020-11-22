@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class TerrainGenerator : MonoBehaviour
@@ -40,15 +41,15 @@ public class TerrainGenerator : MonoBehaviour
 
 
     [Header("Preview settings")]
-    public bool showSurfaceNoiseSample;
+    public bool updateSurfaceSample;
+    public bool updateCaveSample;
 
     [SerializeField, Range(100, 256)]
     private int noiseSampleSize = 128;
 
     [SerializeField, Range(1, 10)]
-    private int noisePixPerUnit = 4;
+    private int noiseUnitPerPix = 4;
 
-    public bool showCaveNoiseSample;
 
     [SerializeField]
     private int caveNoiseSampleZ = 0;
@@ -177,9 +178,9 @@ public class TerrainGenerator : MonoBehaviour
             config.caveNoise.RandomizeSeed();
         }
 
-        for (int x = -renderDistance; x <= renderDistance; x++)
+        for (int x = -renderDistance; x < renderDistance; x++)
         {
-            for (int z = -renderDistance; z <= renderDistance; z++)
+            for (int z = -renderDistance; z < renderDistance; z++)
             {
                 GenerateChunk(x, z);
             }
@@ -245,7 +246,7 @@ public class TerrainGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns a "noise" for (x, y, z), needs a better noise library since this is mirrored around x = y = z and heavily weighted around 0.5f
+    /// Returns a noise for (x, y, z)
     /// </summary>
     /// <param name="x"></param>
     /// <param name="y"></param>
@@ -367,109 +368,54 @@ public class TerrainGenerator : MonoBehaviour
     #endregion
 
     #region Preview
+    private Texture2D surfaceSample, caveSample;
+
     public Texture2D GetSurfaceNoiseSampleTex()
     {
-        var size = noiseSampleSize - noiseSampleSize % noisePixPerUnit;
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int x = 0; x < size; x += noisePixPerUnit)
+        if (surfaceSample != null && !updateSurfaceSample) return surfaceSample;
+            
+        var size = noiseSampleSize - noiseSampleSize % noiseUnitPerPix;
+        int offset = size / 2;
+        surfaceSample = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int x = 0; x < size; x += noiseUnitPerPix)
         {
-            for (int y = 0; y < size; y += noisePixPerUnit)
+            for (int y = 0; y < size; y += noiseUnitPerPix)
             {
-                var surface = SurfaceNoise(x, y);
+                var surface = SurfaceNoise(x - offset, y - offset);
                 float sample = (float)(surface - config.minSurfaceLevel) / (Chunk.HEIGHT - 1 - config.minSurfaceLevel);
                 var c = new Color(sample, surface >= config.waterLevel ? sample + 0.3f : sample, surface >= config.waterLevel ? sample : sample + 0.3f);
-                for (int x1 = 0; x1 < noisePixPerUnit; x1++)
-                    for (int y1 = 0; y1 < noisePixPerUnit; y1++)
-                        tex.SetPixel(x + x1, y + y1, c);
+                for (int x1 = 0; x1 < noiseUnitPerPix; x1++)
+                    for (int y1 = 0; y1 < noiseUnitPerPix; y1++)
+                        surfaceSample.SetPixel(x + x1, y + y1, c);
             }
         }
-        tex.Apply();
-        return tex;
+        surfaceSample.Apply();
+        return surfaceSample;
     }
 
     public Texture2D GetCaveNoiseSampleTex()
     {
-        var size = noiseSampleSize - noiseSampleSize % noisePixPerUnit;
-        Texture2D tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int x = 0; x < size; x += noisePixPerUnit)
+        if (caveSample != null && !updateCaveSample) return caveSample;
+        var size = noiseSampleSize - noiseSampleSize % noiseUnitPerPix;
+        int offset = size / 2;
+        caveSample = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int x = 0; x < size; x += noiseUnitPerPix)
         {
-            for (int y = 0; y < size; y += noisePixPerUnit)
+            for (int y = 0; y < size; y += noiseUnitPerPix)
             {
-                float sample = CaveNoise(x, y, caveNoiseSampleZ);
+                float sample = CaveNoise(x - offset, y - offset, caveNoiseSampleZ);
                 var c = Color.black;
                 if (sample > config.caveNoiseThreshold)
                 {
                     c = Color.white;
                 }
-                for (int x1 = 0; x1 < noisePixPerUnit; x1++)
-                    for (int y1 = 0; y1 < noisePixPerUnit; y1++)
-                        tex.SetPixel(x+x1, y+y1, c);
+                for (int x1 = 0; x1 < noiseUnitPerPix; x1++)
+                    for (int y1 = 0; y1 < noiseUnitPerPix; y1++)
+                        caveSample.SetPixel(x+x1, y+y1, c);
             }
         }
-        tex.Apply();
-        return tex;
+        caveSample.Apply();
+        return caveSample;
     }
     #endregion
-}
-
-[System.Serializable]
-public class Noise
-{
-    public long seed;
-
-    [Range(0, 0.15f)]
-    public float frequency = 0.01f;
-
-    [Range(1, 50)]
-    public float amplitude = 1;
-
-    [SerializeField] private NoiseLayer[] layers;
-
-    private SimplexNoise sNoise;
-
-    private SimplexNoise SNoise
-    {
-        get
-        {
-            if (sNoise?.Seed != seed) sNoise = new SimplexNoise(seed);
-            return sNoise;
-        }
-    }
-
-    public void RandomizeSeed()
-    {
-        seed = (long)Random.Range(0f, 100000f);
-    }
-
-    public float GetValue(float x, float z)
-    {
-        var retVal = SNoise.Evaluate(x * frequency, z * frequency) * amplitude;
-        foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, z);
-        return retVal;
-    }
-
-    public float GetValue(float x, float y, float z)
-    {
-        var retVal = SNoise.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude;
-        foreach (NoiseLayer layer in layers) retVal += layer.GetValue(SNoise, x, y, z);
-        return retVal;
-    }
-
-    [System.Serializable]
-    private class NoiseLayer
-    {
-        [SerializeField, Range(0, 1)]
-        private float weight = 1;
-
-        [SerializeField, Range(0, 0.3f)]
-        private float frequency = 0.01f;
-
-        [SerializeField, Range(0, 10)]
-        private float amplitude = 1;
-
-        public float GetValue(SimplexNoise n, float x, float z) => (n.Evaluate(x * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
-
-        public float GetValue(SimplexNoise n, float x, float y, float z) => (n.Evaluate(x * frequency, y * frequency, z * frequency) * amplitude * 2 - amplitude) * weight;
-    }
-
 }

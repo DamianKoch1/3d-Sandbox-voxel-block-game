@@ -15,21 +15,7 @@ MonoBehaviour:
   minSurfaceLevel: 38
   waterLevel: 48
   dirtLayerSize: 5
-  surfaceNoise:
-    seed: 0
-    frequency: 0.0198
-    amplitude: 30.8
-    layers:
-    - weight: 0.689
-      frequency: 0.119
-      amplitude: 2.12
-  caveNoise:
-    seed: 0
-    frequency: 0.0859
-    amplitude: 1
-    layers:
-    - weight: 1
-      frequency: 0.173
-      amplitude: 0.17
-  caveNoiseThreshold: 0.768
+  surfaceNoise: {fileID: 11400000, guid: 6595d7cf31a83744d9c26763eaf38ca6, type: 2}
+  caveNoise: {fileID: 11400000, guid: 42ba83d04a63da840abf4dd415760d59, type: 2}
+  caveNoiseThreshold: 0.773
   minCaveSurfaceDistance: 2

@@ -191,11 +191,11 @@ public class Player : MonoBehaviour
     {
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.FallSpeed, motion.y + 4 * gravity * Time.deltaTime);
+            motion.y = Mathf.Min(fluid.SinkSpeed, motion.y + 4 * gravity * Time.deltaTime);
         }
         else 
         {
-            motion.y = Mathf.Lerp(motion.y, -fluid.FallSpeed, Time.deltaTime);
+            motion.y = Mathf.Lerp(motion.y, -fluid.SinkSpeed, Time.deltaTime);
         }
     }
 
