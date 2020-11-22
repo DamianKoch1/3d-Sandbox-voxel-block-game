@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Grass : BlockOpaque
 {
-    public Grass(Vector3Int pos) : base(pos)
+    public Grass(Vector3 pos) : base(pos)
     {
         Type = BlockType.Grass;
     }
@@ -12,7 +12,7 @@ public class Grass : BlockOpaque
 
 public class Dirt : BlockOpaque
 {
-    public Dirt(Vector3Int pos) : base(pos)
+    public Dirt(Vector3 pos) : base(pos)
     {
         Type = BlockType.Dirt;
     }
@@ -20,7 +20,7 @@ public class Dirt : BlockOpaque
 
 public class Stone : BlockOpaque
 {
-    public Stone(Vector3Int pos) : base(pos)
+    public Stone(Vector3 pos) : base(pos)
     {
         Type = BlockType.Stone;
     }
@@ -28,7 +28,7 @@ public class Stone : BlockOpaque
 
 public class BottomStone : BlockOpaque
 {
-    public BottomStone(Vector3Int pos) : base(pos)
+    public BottomStone(Vector3 pos) : base(pos)
     {
         Type = BlockType.BottomStone;
     }
@@ -36,17 +36,41 @@ public class BottomStone : BlockOpaque
 
 public class Water : Fluid
 {
-    public Water(Vector3Int pos) : base(pos)
+    protected override bool CanCombineToSource => true;
+
+    public override float SinkSpeed => 3;
+
+    protected override int MaxHorizontalFlow => 5;
+
+    public Water(Vector3 pos) : base(pos)
     {
         Type = BlockType.Water;
-        SinkSpeed = 3;
-        maxHorizontalFlow = 5;
+    }
+}
+
+public class Lava : Fluid
+{
+    public override float SinkSpeed => 1;
+
+    protected override int MaxHorizontalFlow => 2;
+
+    protected override float TickInterval => 1f;
+
+    public override float SpeedMultiplier => 0.3f;
+
+    public override Color FogColor => new Color(1f, 0.35f, 0f);
+
+    public override float FogDensity => 0.45f;
+
+    public Lava(Vector3 pos) : base(pos)
+    {
+        Type = BlockType.Lava;
     }
 }
 
 public class Glass : BlockTransparent
 {
-    public Glass(Vector3Int pos) : base(pos)
+    public Glass(Vector3 pos) : base(pos)
     {
         Type = BlockType.Glass;
     }
@@ -56,7 +80,7 @@ public class TNT : BlockOpaque, IUseable
 {
     private int range = 2;
 
-    public TNT(Vector3Int pos) : base(pos)
+    public TNT(Vector3 pos) : base(pos)
     {
         Type = BlockType.Tnt;
     }

@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: PlainsSurface
   m_EditorClassIdentifier: 
   seed: 0
-  frequency: 0.0221
-  amplitude: 29.5
+  frequency: 0.0313
+  amplitude: 20.2
   layers:
   - weight: 1
-    frequency: 0.099
-    amplitude: 1.22
+    frequency: 0.129
+    amplitude: 0.89

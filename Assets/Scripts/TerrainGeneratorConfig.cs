@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 [CreateAssetMenu]
 public class TerrainGeneratorConfig : ScriptableObject
@@ -9,7 +7,10 @@ public class TerrainGeneratorConfig : ScriptableObject
     public int minSurfaceLevel = 50;
 
     [Range(0, 100)]
-    public int waterLevel = 60;
+    public int waterLevel = 60; 
+    
+    [Range(0, 100)]
+    public int lavaLevel = 8;
 
     [Range(2, 10)]
     public int dirtLayerSize = 5;

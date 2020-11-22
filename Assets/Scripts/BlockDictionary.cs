@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public static class BlockDictionary
@@ -21,12 +20,12 @@ public static class BlockDictionary
 
         InitVertexDict();
 
-        RegisterBlocks();
+        RegisterTextures();
     }
 
-    private static void RegisterBlocks()
+    private static void RegisterTextures()
     {
-        RegisterBlock(BlockType.Grass, 0, 0
+        RegisterTexture(BlockType.Grass, 0, 0
             , new TexOffset(1, 0
                 , Direction.North
                 , Direction.South
@@ -42,6 +41,7 @@ public static class BlockDictionary
         RegisterBlock(BlockType.Water, 5, 0);
         RegisterBlock(BlockType.Glass, 6, 0);
         RegisterBlock(BlockType.Tnt, 7, 0);
+        RegisterBlock(BlockType.Lava, 8, 0);
     }
 
 
@@ -57,7 +57,7 @@ public static class BlockDictionary
             UVs[type].Add(dir, GetUVs(uvX, uvY));
     }
 
-    private static void RegisterBlock(BlockType type, int uvX, int uvY, params TexOffset[] customs)
+    private static void RegisterTexture(BlockType type, int uvX, int uvY, params TexOffset[] customs)
     {
         UVs.Add(type, new Dictionary<Direction, Vector2[]>());
         foreach (var tex in customs)

@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
+/// <summary>
+/// Cancels Tasks if exiting Play mode
+/// </summary>
 #if UNITY_EDITOR
 [InitializeOnLoad]
 #endif

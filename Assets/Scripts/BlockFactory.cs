@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BlockFactory : MonoBehaviour
 {
@@ -22,6 +20,8 @@ public class BlockFactory : MonoBehaviour
                 return new Glass(pos);
             case BlockType.Tnt:
                 return new TNT(pos);
+            case BlockType.Lava:
+                return new Lava(pos);
         }
         return null;
     }
@@ -41,4 +41,5 @@ public enum BlockType
     Water = 4,
     Glass = 5,
     Tnt = 6,
+    Lava = 7,
 }

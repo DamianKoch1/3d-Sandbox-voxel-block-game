@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class Chunk : ChunkMesh
@@ -49,19 +48,23 @@ public class Chunk : ChunkMesh
                     var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
                     if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
                     else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
-                    else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance
+                    else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance 
                         && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.config.caveNoiseThreshold)
                     {
-                        var above = blocks[x, y + 1, z];
-                        if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
-                        else continue;
+                        if (y < tg.config.lavaLevel) block = BlockFactory.Create(BlockType.Lava, blockPos);
+                        else
+                        {
+                            var above = blocks[x, y + 1, z];
+                            if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
+                            else continue;
+                        }
                     }
                     else if (y == localSurfaceLevel)
                     {
                         if (y >= tg.config.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
                         else block = BlockFactory.Create(BlockType.Dirt, blockPos);
                     }
-                    else if (y > localSurfaceLevel - tg.config.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                    else if (y > localSurfaceLevel - tg.config.dirtLayerSize + Random.Range(0, 2)) block = BlockFactory.Create(BlockType.Dirt, blockPos);
                     else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
                     blocks[x, y, z] = block;
                 }
@@ -86,6 +89,7 @@ public class Chunk : ChunkMesh
         List<int> transparentTriangles = new List<int>();
         List<Vector2> transparentUVs = new List<Vector2>();
 
+        //reference to list to add to (solid / fluid / transparent)
         List<Vector3> vertexList;
         List<int> triList;
         List<Vector2> uvList;
@@ -132,7 +136,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.South, neighbour))
                     {
-                        //front
                         foreach (var vertex in block.GetVertices(Direction.South, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.South));
@@ -151,7 +154,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.North, neighbour))
                     {
-                        //back
                         foreach (var vertex in block.GetVertices(Direction.North, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.North));
@@ -170,7 +172,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.West, neighbour))
                     {
-                        //left
                         foreach (var vertex in block.GetVertices(Direction.West, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.West));
@@ -189,7 +190,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.East, neighbour))
                     {
-                        //right
                         foreach (var vertex in block.GetVertices(Direction.East, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.East));
@@ -208,7 +208,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.Down, neighbour))
                     {
-                        //bottom
                         foreach (var vertex in block.GetVertices(Direction.Down, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.Down));
@@ -226,7 +225,6 @@ public class Chunk : ChunkMesh
 
                     if (block.DrawFaceNextTo(Direction.Up, neighbour))
                     {
-                        //top
                         foreach (var vertex in block.GetVertices(Direction.Up, neighbour))
                             vertexList.Add(blockIdx + vertex);
                         uvList.AddRange(block.GetUVs(Direction.Up));
@@ -304,9 +302,10 @@ public class Chunk : ChunkMesh
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
         var block = blocks[idx.x, idx.y, idx.z];
-        if (!(block is Fluid))
+        if (block != null)
         {
-            if (block != null) return null;
+            if (block is Fluid) block.OnDestroyed();
+            else return null;
         }
         var newBlock = BlockFactory.Create(type, blockPos);
         if (!ignoreEntities && !newBlock.CanPlaceInEntity && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;

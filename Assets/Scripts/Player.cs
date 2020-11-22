@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Player : MonoBehaviour
 {
@@ -15,6 +12,7 @@ public class Player : MonoBehaviour
 
     public float jumpStrength;
 
+    [SerializeField]
     private Vector3 motion;
 
     float yaw;
@@ -117,27 +115,19 @@ public class Player : MonoBehaviour
 
     private void CheckIfSwimming()
     {
-        //TODO add Block.IsInside(Vector3 offset (0-1)) for eg water
+        var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.6f);
         var headBlock = TerrainGenerator.Instance.GetBlock(cam.transform.position + Vector3.up * 0.2f);
-        if (headBlock is Fluid)
+        var headFluid = headBlock is Fluid;
+        var footFluid = footBlock is Fluid;
+        RenderSettings.fog = headFluid;
+        if (headFluid)
         {
-            fluid = (Fluid)headBlock;
-            RenderSettings.fog = true;
+            RenderSettings.fogColor = (headBlock as Fluid).FogColor;
+            RenderSettings.fogDensity = (headBlock as Fluid).FogDensity;
         }
-        else
-        {
-            RenderSettings.fog = false;
-            var footBlock = TerrainGenerator.Instance.GetBlock(transform.position - Vector3.up * 0.4f);
-            if (footBlock is Fluid)
-            {
-                fluid = (Fluid)footBlock;
-
-            }
-            else
-            {
-                fluid = null;
-            }
-        }
+        if (footFluid) fluid = footBlock as Fluid;
+        else if (headFluid) fluid = headBlock as Fluid;
+        else fluid = null;
     }
 
     private void Movement()
@@ -189,14 +179,21 @@ public class Player : MonoBehaviour
 
     private void Swim()
     {
+        motion.x *= fluid.SpeedMultiplier;
+        motion.z *= fluid.SpeedMultiplier;
         if (Input.GetButton("Jump"))
         {
-            motion.y = Mathf.Min(fluid.SinkSpeed, motion.y + 4 * gravity * Time.deltaTime);
+            motion.y = Mathf.Min(fluid.SinkSpeed, motion.y + gravity * 2 * Time.deltaTime);
         }
-        else 
+        else if (controller.isGrounded)
         {
-            motion.y = Mathf.Lerp(motion.y, -fluid.SinkSpeed, Time.deltaTime);
+            motion.y = controller.velocity.y - gravity * Time.deltaTime;
         }
+        else if (motion.y < -fluid.SinkSpeed)
+        {
+            motion.y = Mathf.Lerp(motion.y, -fluid.SinkSpeed, Time.deltaTime * 4);
+        }
+        else motion.y = Mathf.Max(motion.y - gravity * Time.deltaTime, -fluid.SinkSpeed);
     }
 
     private void Attack()

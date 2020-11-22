@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a17b2db5b6230b841b8dbcd7b4b0b282, type: 3}
   m_Name: GeneratorConfig
   m_EditorClassIdentifier: 
-  minSurfaceLevel: 38
+  minSurfaceLevel: 42
   waterLevel: 48
   dirtLayerSize: 5
   surfaceNoise: {fileID: 11400000, guid: 6595d7cf31a83744d9c26763eaf38ca6, type: 2}

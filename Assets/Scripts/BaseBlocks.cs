@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
 public abstract class Block
 {
-    public Block(Vector3Int pos)
+    public Block(Vector3 pos)
     {
         Pos = pos;
     }
@@ -15,17 +13,19 @@ public abstract class Block
 
     public BlockType Type { get; protected set; }
 
-    public bool CanPlaceInEntity { get; protected set; } = false;
+    public virtual bool CanPlaceInEntity => true;
 
-    protected float tickInterval = 0.5f;
+    protected virtual float TickInterval => 0.5f;
 
     protected async Task<bool> Tick()
     {
-        await Task.Delay((int)(tickInterval * 1000));
+        await Task.Delay((int)(TickInterval * 1000));
+        if (destroyed) return false;
         //don't tick if exiting playmode
         return !ThreadingUtils.QuitToken.IsCancellationRequested;
     }
 
+    private bool destroyed;
 
 
     /// <summary>
@@ -57,6 +57,7 @@ public abstract class Block
     public virtual void OnDestroyed()
     {
         UpdateNeighbours();
+        destroyed = true;
     }
 
     /// <summary>
@@ -72,8 +73,8 @@ public abstract class Block
         neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.right));
         neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.up));
         neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.down));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, 1)));
-        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, -1)));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.forward));
+        neighbours.Add(TerrainGenerator.Instance.GetBlock(Pos - Vector3.forward));
         return neighbours;
     }
 
@@ -88,7 +89,7 @@ public abstract class Block
 
 public abstract class BlockOpaque : Block
 {
-    public BlockOpaque(Vector3Int pos) : base(pos)
+    public BlockOpaque(Vector3 pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Direction dir, Block neighbour)
@@ -99,7 +100,7 @@ public abstract class BlockOpaque : Block
 
 public abstract class BlockTransparent : Block
 {
-    public BlockTransparent(Vector3Int pos) : base(pos)
+    public BlockTransparent(Vector3 pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Direction dir, Block neighbour)
@@ -110,51 +111,58 @@ public abstract class BlockTransparent : Block
 
 public abstract class Fluid : Block
 {
-    public float SinkSpeed { get; protected set; } = 3;
-
     /// <summary>
     /// How many blocks already flown away from nearest source
     /// </summary>
     protected int currHorizontalFlow = 0;
 
     /// <summary>
-    /// Max amount of blocks it can flow away from nearest source
-    /// </summary>
-    protected int maxHorizontalFlow = 2;
-
-    /// <summary>
     /// Surface height of source block
     /// </summary>
-    protected float defaultSurface = 0.8f;
+    protected const float defaultSurface = 0.8f;
 
     /// <summary>
     /// Surface height of block with max horizontal flow
     /// </summary>
-    protected float minSurface = 0.1f;
+    protected const float minSurface = 0.1f;
+
+    #region Config
+    public virtual float SinkSpeed => 3;
+    public virtual float SpeedMultiplier => 0.8f;
+
+
+    /// <summary>
+    /// Max amount of blocks it can flow away from nearest source
+    /// </summary>
+    protected virtual int MaxHorizontalFlow => 2;
+
 
     /// <summary>
     /// Wether blocks next to 2 sources can become a source themselves
     /// </summary>
-    protected bool canCombineToSource = true;
+    protected virtual bool CanCombineToSource => false;
+
+    public override bool CanPlaceInEntity => true;
 
     public virtual bool IsSource { get; protected set; }
 
-    protected float S => Mathf.Lerp(defaultSurface, minSurface, (float)currHorizontalFlow / maxHorizontalFlow);
+    public virtual Color FogColor => new Color(0.1f, 0.25f, 0.6f);
 
-    public Fluid(Vector3Int pos) : base(pos)
+    public virtual float FogDensity => 0.15f;
+    #endregion
+
+    protected float S => Mathf.Lerp(defaultSurface, minSurface, (float)currHorizontalFlow / MaxHorizontalFlow);
+
+    public Fluid(Vector3 pos) : base(pos)
     {
         currHorizontalFlow = 0;
-        defaultSurface = 0.8f;
-        minSurface = 0.1f;
-        CanPlaceInEntity = true;
         IsSource = true;
-        canCombineToSource = true;
     }
 
     public override bool DrawFaceNextTo(Direction dir, Block neighbour)
     {
-        if (dir == Direction.Up) return neighbour is Fluid == false;
-        return neighbour == null || neighbour is BlockTransparent;
+        if (neighbour is BlockOpaque && dir != Direction.Up) return false;
+        return neighbour?.Type != Type;
     }
 
     public override void OnBlockUpdate()
@@ -187,17 +195,17 @@ public abstract class Fluid : Block
         var affectedChunks = new HashSet<Chunk>();
 
         var up = TerrainGenerator.Instance.GetBlock(Pos + Vector3.up);
-        if (up is Fluid) return;
+        if (up?.Type == Type) return;
         var sideNeighbours = new List<Block>();
         sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.left));
         sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.right));
-        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, 1)));
-        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + new Vector3(0, 0, -1)));
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos + Vector3.forward));
+        sideNeighbours.Add(TerrainGenerator.Instance.GetBlock(Pos - Vector3.forward));
         foreach (var block in sideNeighbours)
         {
-            if (block is Fluid && (block as Fluid).currHorizontalFlow < currHorizontalFlow) return;
+            if (block?.Type == Type && (block as Fluid).currHorizontalFlow < currHorizontalFlow) return;
         }
-        if (currHorizontalFlow >= maxHorizontalFlow)
+        if (currHorizontalFlow >= MaxHorizontalFlow)
         {
             TerrainGenerator.Instance.DestroyBlockSilent(Pos, affectedChunks);
         }
@@ -206,8 +214,8 @@ public abstract class Fluid : Block
             currHorizontalFlow++;
             affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + Vector3.left));
             affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + Vector3.right));
-            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, 1)));
-            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + new Vector3(0, 0, -1)));
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos + Vector3.forward));
+            affectedChunks.Add(TerrainGenerator.Instance.GetChunk(Pos - Vector3.forward));
             UpdateNeighbours();
             CheckForSource();
         }
@@ -230,18 +238,18 @@ public abstract class Fluid : Block
             foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
             if (!IsSource) return;
         }
-        if (blockBelow is Fluid)
+        if (blockBelow?.Type == Type)
         {
-            ((Fluid)blockBelow).currHorizontalFlow = 0;
+            (blockBelow as Fluid).currHorizontalFlow = 0;
             blockBelow.OnBlockUpdate();
             if (!IsSource) return;
         }
-        if (currHorizontalFlow >= maxHorizontalFlow) return;
+        if (currHorizontalFlow >= MaxHorizontalFlow) return;
 
         TryFlowToDir(Vector3Int.left, currHorizontalFlow + 1, affectedChunks);
         TryFlowToDir(Vector3Int.right, currHorizontalFlow + 1, affectedChunks);
-        TryFlowToDir(new Vector3Int(0, 0, 1), currHorizontalFlow + 1, affectedChunks);
-        TryFlowToDir(new Vector3Int(0, 0, -1), currHorizontalFlow + 1, affectedChunks);
+        TryFlowToDir(Vec3Int.forward, currHorizontalFlow + 1, affectedChunks);
+        TryFlowToDir(-Vec3Int.forward, currHorizontalFlow + 1, affectedChunks);
         foreach (var chunk in affectedChunks) TerrainGenerator.Instance.MarkDirty(chunk);
     }
 
@@ -253,25 +261,26 @@ public abstract class Fluid : Block
     /// <param name="newFlowAmount"></param>
     protected void TryFlowToDir(Vector3Int dir, int newFlowAmount, HashSet<Chunk> affectedChunks)
     {
-        var newPos = Pos + dir;
+        var newPos = new Vector3(Pos.x + dir.x, Pos.y + dir.y, Pos.z + dir.z);
         var block = TerrainGenerator.Instance.GetBlock(newPos);
         Fluid f;
         if (block != null)
         {
-            if (block is Fluid)
+            if (block.Type == Type)
             {
                 f = block as Fluid;
                 if (TryMakeSource(f, dir)) return;
                 if (f.currHorizontalFlow > newFlowAmount)
                 {
-                    f.currHorizontalFlow = Mathf.Min(f.currHorizontalFlow, newFlowAmount);
+                    f.currHorizontalFlow = newFlowAmount;
+                    affectedChunks.Add(TerrainGenerator.Instance.GetChunk(f.Pos));
                     f.TryFlow();
                 }
             }
             return;
         }
         var newFluid = TerrainGenerator.Instance.PlaceBlockSilent(Type, newPos, affectedChunks);
-        if (!(newFluid is Fluid)) return;
+        if (newFluid == null) return;
         f = newFluid as Fluid;
         if (TryMakeSource(f, dir)) return;
         f.currHorizontalFlow = newFlowAmount;
@@ -286,22 +295,22 @@ public abstract class Fluid : Block
     /// <returns></returns>
     protected bool TryMakeSource(Fluid f, Vector3Int dir)
     {
-        if (!canCombineToSource || !IsSource || f.IsSource) return false;
+        if (!CanCombineToSource || !IsSource || f.IsSource) return false;
         var dir2 = TerrainGenerator.Instance.GetBlock(f.Pos + dir);
-        if (dir2 is Fluid && (dir2 as Fluid).IsSource)
+        if (dir2?.Type == Type && (dir2 as Fluid).IsSource)
         {
             f.MakeSource();
             return true;
         }
-        var cross = dir.x != 0 ? new Vector3Int(0, 0, 1) : Vector3Int.right;
+        var cross = dir.x != 0 ? Vector3.forward : Vector3.right;
         var cross1 = TerrainGenerator.Instance.GetBlock(f.Pos + cross);
-        if (cross1 is Fluid && (cross1 as Fluid).IsSource)
+        if (cross1?.Type == Type && (cross1 as Fluid).IsSource)
         {
             f.MakeSource();
             return true;
         }
         var cross2 = TerrainGenerator.Instance.GetBlock(f.Pos - cross);
-        if (cross2 is Fluid && (cross2 as Fluid).IsSource)
+        if (cross2?.Type == Type && (cross2 as Fluid).IsSource)
         {
             f.MakeSource();
             return true;
@@ -309,9 +318,8 @@ public abstract class Fluid : Block
         return false;
     }
 
-    protected async void MakeSource()
+    protected void MakeSource()
     {
-        if (!await Tick()) return;
         IsSource = true;
         currHorizontalFlow = 0;
         OnBlockUpdate();
