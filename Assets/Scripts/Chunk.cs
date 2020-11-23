@@ -9,9 +9,9 @@ public class Chunk : ChunkMesh
     public const int HEIGHT = 128;
 
 
-    public Vector2Int pos;
+    public Vector2Int Pos { get; private set; }
 
-    public Block[,,] blocks;
+    public Block[,,] Blocks { get; private set; }
 
     [SerializeField]
     private ChunkMesh fluidMesh;
@@ -23,11 +23,11 @@ public class Chunk : ChunkMesh
     public void Initialize(Vector2Int _pos)
     {
         Initialize();
-        pos = _pos;
+        Pos = _pos;
         fluidMesh.Initialize();
         transparentMesh.Initialize();
-        transform.position = new Vector3(pos.x * SIZE, 0, pos.y * SIZE);
-        gameObject.name = "Chunk " + pos;
+        transform.position = new Vector3(Pos.x * SIZE, 0, Pos.y * SIZE);
+        gameObject.name = "Chunk " + Pos;
     }
 
     /// <summary>
@@ -37,26 +37,26 @@ public class Chunk : ChunkMesh
     {
         return Task.Run(() =>
         {
-            blocks = new Block[SIZE, HEIGHT, SIZE];
+            Blocks = new Block[SIZE, HEIGHT, SIZE];
             var tg = TerrainGenerator.Instance;
             for (int x = 0; x < SIZE; x++)
             {
                 for (int z = 0; z < SIZE; z++)
                 {
-                    var localSurfaceLevel = tg.SurfaceNoise(x + pos.x * SIZE, z + pos.y * SIZE);
+                    var localSurfaceLevel = tg.SurfaceNoise(x + Pos.x * SIZE, z + Pos.y * SIZE);
                     for (int y = Mathf.Max(localSurfaceLevel, tg.config.waterLevel); y >= 0; y--)
                     {
                         Block block = null;
-                        var blockPos = new Vector3Int(x + pos.x * SIZE, y, z + pos.y * SIZE);
+                        var blockPos = new Vector3Int(x + Pos.x * SIZE, y, z + Pos.y * SIZE);
                         if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
                         else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
                         else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance
-                            && tg.CaveNoise(x + pos.x * SIZE, y, z + pos.y * SIZE) > tg.config.caveNoiseThreshold)
+                            && tg.CaveNoise(x + Pos.x * SIZE, y, z + Pos.y * SIZE) > tg.config.caveNoiseThreshold)
                         {
                             if (y < tg.config.lavaLevel) block = BlockFactory.Create(BlockType.Lava, blockPos);
                             else
                             {
-                                var above = blocks[x, y + 1, z];
+                                var above = Blocks[x, y + 1, z];
                                 if (above is Fluid) block = BlockFactory.Create(above.Type, blockPos);
                                 else continue;
                             }
@@ -68,7 +68,7 @@ public class Chunk : ChunkMesh
                         }
                         else if (y > localSurfaceLevel - tg.config.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
                         else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
-                        blocks[x, y, z] = block;
+                        Blocks[x, y, z] = block;
                     }
                 }
             }
@@ -97,6 +97,8 @@ public class Chunk : ChunkMesh
         List<int> triList;
         List<Vector2> uvList;
 
+        while (Blocks == null) await Generate();
+
         await Task.Run(() =>
         {
             for (int x = 0; x < SIZE; x++)
@@ -105,7 +107,7 @@ public class Chunk : ChunkMesh
                 {
                     for (int y = 0; y < HEIGHT; y++)
                     {
-                        var block = blocks[x, y, z];
+                        var block = Blocks[x, y, z];
                         if (block == null) continue;
                         if (block is Fluid)
                         {
@@ -136,7 +138,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x, y, z - 1];
+                            neighbour = Blocks[x, y, z - 1];
                         }
 
                         if (block.DrawFaceNextTo(Direction.South, neighbour))
@@ -154,7 +156,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x, y, z + 1];
+                            neighbour = Blocks[x, y, z + 1];
                         }
 
                         if (block.DrawFaceNextTo(Direction.North, neighbour))
@@ -172,7 +174,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x - 1, y, z];
+                            neighbour = Blocks[x - 1, y, z];
                         }
 
                         if (block.DrawFaceNextTo(Direction.West, neighbour))
@@ -190,7 +192,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x + 1, y, z];
+                            neighbour = Blocks[x + 1, y, z];
                         }
 
                         if (block.DrawFaceNextTo(Direction.East, neighbour))
@@ -208,7 +210,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x, y - 1, z];
+                            neighbour = Blocks[x, y - 1, z];
                         }
 
                         if (block.DrawFaceNextTo(Direction.Down, neighbour))
@@ -225,7 +227,7 @@ public class Chunk : ChunkMesh
                         }
                         else
                         {
-                            neighbour = blocks[x, y + 1, z];
+                            neighbour = Blocks[x, y + 1, z];
                         }
 
                         if (block.DrawFaceNextTo(Direction.Up, neighbour))
@@ -249,7 +251,8 @@ public class Chunk : ChunkMesh
                     }
                 }
             }
-        });
+        }
+        );
         fluidMesh.ApplyMesh(fluidVertices, fluidTriangles, fluidUVs);
 
         transparentMesh.ApplyMesh(transparentVertices, transparentTriangles, transparentUVs);
@@ -266,9 +269,9 @@ public class Chunk : ChunkMesh
     public Vector3Int GetBlockIdx(Vector3 v)
     {
         Vector3Int vi = Vector3Int.zero;
-        vi.x = Mathf.FloorToInt(v.x) - pos.x * SIZE;
+        vi.x = Mathf.FloorToInt(v.x) - Pos.x * SIZE;
         vi.y = Mathf.FloorToInt(v.y);
-        vi.z = Mathf.FloorToInt(v.z) - pos.y * SIZE;
+        vi.z = Mathf.FloorToInt(v.z) - Pos.y * SIZE;
         return vi;
     }
 
@@ -282,7 +285,7 @@ public class Chunk : ChunkMesh
         var idx = GetBlockIdx(_pos);
         if (idx.y < 0) return null;
         if (idx.y >= HEIGHT) return null;
-        return blocks[idx.x, idx.y, idx.z];
+        return Blocks[idx.x, idx.y, idx.z];
     }
 
     /// <summary>
@@ -292,7 +295,7 @@ public class Chunk : ChunkMesh
     /// <returns></returns>
     private bool IsValidBlockIdx(Vector3Int idx)
     {
-        return blocks[idx.x, idx.y, idx.z] != null;
+        return Blocks[idx.x, idx.y, idx.z] != null;
     }
     #endregion
 
@@ -307,7 +310,7 @@ public class Chunk : ChunkMesh
     {
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
-        var block = blocks[idx.x, idx.y, idx.z];
+        var block = Blocks[idx.x, idx.y, idx.z];
         if (block != null)
         {
             if (block is Fluid) block.OnDestroyed();
@@ -315,7 +318,7 @@ public class Chunk : ChunkMesh
         }
         var newBlock = BlockFactory.Create(type, blockPos);
         if (!ignoreEntities && !newBlock.CanPlaceInEntity && Physics.CheckBox(blockPos + Vector3.one * 0.5f, Vector3.one * 0.45f)) return null;
-        blocks[idx.x, idx.y, idx.z] = newBlock;
+        Blocks[idx.x, idx.y, idx.z] = newBlock;
         newBlock.OnPlaced();
         BuildMesh();
         UpdateAdjacentChunks(idx);
@@ -333,20 +336,20 @@ public class Chunk : ChunkMesh
     {
         var idx = GetBlockIdx(_pos);
         var blockPos = Vector3Int.FloorToInt(_pos);
-        var block = blocks[idx.x, idx.y, idx.z];
+        var block = Blocks[idx.x, idx.y, idx.z];
         if (!(block is Fluid))
         {
             if (block != null) return null;
         }
-        blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
-        blocks[idx.x, idx.y, idx.z].OnPlaced();
+        Blocks[idx.x, idx.y, idx.z] = BlockFactory.Create(type, blockPos);
+        Blocks[idx.x, idx.y, idx.z].OnPlaced();
         affectedChunks.Add(this);
         var tg = TerrainGenerator.Instance;
-        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
-        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
-        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
-        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
-        return blocks[idx.x, idx.y, idx.z];
+        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.left));
+        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.right));
+        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.down));
+        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.up));
+        return Blocks[idx.x, idx.y, idx.z];
     }
     #endregion
 
@@ -360,8 +363,8 @@ public class Chunk : ChunkMesh
     {
         var idx = GetBlockIdx(_pos);
         if (!IsValidBlockIdx(idx)) return false;
-        blocks[idx.x, idx.y, idx.z].OnDestroyed();
-        blocks[idx.x, idx.y, idx.z] = null;
+        Blocks[idx.x, idx.y, idx.z].OnDestroyed();
+        Blocks[idx.x, idx.y, idx.z] = null;
         BuildMesh();
         UpdateAdjacentChunks(idx);
         return true;
@@ -380,16 +383,16 @@ public class Chunk : ChunkMesh
         if (!IsValidBlockIdx(idx)) return false;
         if (!includeFluids)
         {
-            if (blocks[idx.x, idx.y, idx.z] is Fluid) return false;
+            if (Blocks[idx.x, idx.y, idx.z] is Fluid) return false;
         }
-        blocks[idx.x, idx.y, idx.z].OnDestroyed();
-        blocks[idx.x, idx.y, idx.z] = null;
+        Blocks[idx.x, idx.y, idx.z].OnDestroyed();
+        Blocks[idx.x, idx.y, idx.z] = null;
         affectedChunks.Add(this);
         var tg = TerrainGenerator.Instance;
-        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.left));
-        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.right));
-        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.down));
-        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(pos + Vector2Int.up));
+        if (idx.x == 0) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.left));
+        else if (idx.x == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.right));
+        if (idx.z == 0) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.down));
+        else if (idx.z == SIZE - 1) affectedChunks.Add(tg.GetChunkByIdx(Pos + Vector2Int.up));
         return true;
     }
     #endregion
@@ -401,16 +404,21 @@ public class Chunk : ChunkMesh
     private void UpdateAdjacentChunks(Vector3Int blockIdx)
     {
         var tg = TerrainGenerator.Instance;
-        if (blockIdx.x == 0) tg.GetChunkByIdx(pos + Vector2Int.left)?.BuildMesh();
-        else if (blockIdx.x == SIZE - 1) tg.GetChunkByIdx(pos + Vector2Int.right)?.BuildMesh();
-        if (blockIdx.z == 0) tg.GetChunkByIdx(pos + Vector2Int.down)?.BuildMesh();
-        else if (blockIdx.z == SIZE - 1) tg.GetChunkByIdx(pos + Vector2Int.up)?.BuildMesh();
+        if (blockIdx.x == 0) tg.GetChunkByIdx(Pos + Vector2Int.left)?.BuildMesh();
+        else if (blockIdx.x == SIZE - 1) tg.GetChunkByIdx(Pos + Vector2Int.right)?.BuildMesh();
+        if (blockIdx.z == 0) tg.GetChunkByIdx(Pos + Vector2Int.down)?.BuildMesh();
+        else if (blockIdx.z == SIZE - 1) tg.GetChunkByIdx(Pos + Vector2Int.up)?.BuildMesh();
+    }
+
+    public override int GetHashCode()
+    {
+        return Pos.GetHashCode();
     }
 
     private void OnDrawGizmosSelected()
     {
         if (!TerrainGenerator.Instance.drawGizmos) return;
         Gizmos.color = Color.blue;
-        Gizmos.DrawWireCube(new Vector3(pos.x, 0, pos.y) * SIZE + new Vector3(SIZE, HEIGHT, SIZE) * 0.5f, new Vector3(SIZE, HEIGHT, SIZE));
+        Gizmos.DrawWireCube(new Vector3(Pos.x, 0, Pos.y) * SIZE + new Vector3(SIZE, HEIGHT, SIZE) * 0.5f, new Vector3(SIZE, HEIGHT, SIZE));
     }
 }

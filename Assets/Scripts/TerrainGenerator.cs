@@ -58,7 +58,7 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField]
     private Vector2Int playerChunkPos;
 
-    private Stack<Chunk> dirtyChunks;
+    private HashSet<Chunk> dirtyChunks;
 
     private async void Start()
     {
@@ -66,8 +66,8 @@ public class TerrainGenerator : MonoBehaviour
         await Generate();
         player = FindObjectOfType<Player>();
         player.Initialize();
-        playerChunkPos = GetChunk(player.transform.position).pos;
-        dirtyChunks = new Stack<Chunk>();
+        playerChunkPos = GetChunk(player.transform.position).Pos;
+        dirtyChunks = new HashSet<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
         RebuildDirtyChunks();
         InvokeRepeating(nameof(RebuildDirtyChunk), 1, meshBuildingInterval);
@@ -104,7 +104,7 @@ public class TerrainGenerator : MonoBehaviour
     {
         foreach (var chunk in chunks.Values)
         {
-            if (Mathf.Abs(chunk.pos.x - playerChunkPos.x) <= renderDistance && Mathf.Abs(chunk.pos.y - playerChunkPos.y) <= renderDistance)
+            if (Mathf.Abs(chunk.Pos.x - playerChunkPos.x) <= renderDistance && Mathf.Abs(chunk.Pos.y - playerChunkPos.y) <= renderDistance)
             {
                 if (!chunk.gameObject.activeSelf)
                 {
@@ -146,8 +146,17 @@ public class TerrainGenerator : MonoBehaviour
     private async Task RebuildDirtyChunk()
     {
         if (dirtyChunks.Count == 0) return;
-        var chunk = dirtyChunks.Pop();
-        await chunk.BuildMesh();
+        Chunk closest = null;
+        float dist = 10000000f;
+        foreach (var chunk in dirtyChunks)
+        {
+            var newDist = (chunk.Pos - playerChunkPos).sqrMagnitude;
+            if (newDist >= dist) continue;
+            dist = newDist;
+            closest = chunk;
+        }
+        dirtyChunks.Remove(closest);
+        await closest.BuildMesh();
     }
 
     /// <summary>
@@ -172,7 +181,7 @@ public class TerrainGenerator : MonoBehaviour
     {
         if (c == null) return;
         if (dirtyChunks.Contains(c)) return;
-        dirtyChunks.Push(c);
+        dirtyChunks.Add(c);
     }
 
     /// <summary>

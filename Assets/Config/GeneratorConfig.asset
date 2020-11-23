@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minSurfaceLevel: 42
   waterLevel: 48
+  lavaLevel: 8
   dirtLayerSize: 5
   surfaceNoise: {fileID: 11400000, guid: 6595d7cf31a83744d9c26763eaf38ca6, type: 2}
   caveNoise: {fileID: 11400000, guid: 42ba83d04a63da840abf4dd415760d59, type: 2}

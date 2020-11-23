@@ -35,11 +35,11 @@ public class ChunkMesh : MonoBehaviour
     {
         mesh.Clear();
 
-        mesh.vertices = vertices.ToArray();
+        mesh.SetVertices(vertices);
 
-        mesh.triangles = triangles.ToArray();
+        mesh.SetTriangles(triangles, 0);
 
-        mesh.uv = uvs.ToArray();
+        mesh.SetUVs(0, uvs);
 
         //mesh.RecalculateBounds();
         mesh.RecalculateNormals();
