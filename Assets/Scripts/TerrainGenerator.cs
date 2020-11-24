@@ -70,7 +70,6 @@ public class TerrainGenerator : MonoBehaviour
         dirtyChunks = new HashSet<Chunk>();
         InvokeRepeating(nameof(UpdatePlayerPos), 1, 1);
         RebuildDirtyChunks();
-        InvokeRepeating(nameof(RebuildDirtyChunk), 1, meshBuildingInterval);
     }
 
     private async void RebuildDirtyChunks()

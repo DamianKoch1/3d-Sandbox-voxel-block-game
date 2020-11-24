@@ -97,7 +97,7 @@ public class Chunk : ChunkMesh
         List<int> triList;
         List<Vector2> uvList;
 
-        while (Blocks == null) await Generate();
+        //while (Blocks == null) await Generate();
 
         await Task.Run(() =>
         {

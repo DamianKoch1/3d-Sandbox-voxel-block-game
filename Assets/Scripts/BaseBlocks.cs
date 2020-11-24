@@ -4,12 +4,12 @@ using UnityEngine;
 
 public abstract class Block
 {
-    public Block(Vector3 pos)
+    public Block(Vector3Int pos)
     {
         Pos = pos;
     }
 
-    public Vector3 Pos { get; private set; }
+    public Vector3Int Pos { get; private set; }
 
     public BlockType Type { get; protected set; }
 
@@ -91,7 +91,7 @@ public abstract class Block
 
 public abstract class BlockOpaque : Block
 {
-    public BlockOpaque(Vector3 pos) : base(pos)
+    public BlockOpaque(Vector3Int pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Direction dir, Block neighbour)
@@ -102,12 +102,12 @@ public abstract class BlockOpaque : Block
 
 public abstract class BlockTransparent : Block
 {
-    public BlockTransparent(Vector3 pos) : base(pos)
+    public BlockTransparent(Vector3Int pos) : base(pos)
     { }
 
     public override bool DrawFaceNextTo(Direction dir, Block neighbour)
     {
-        return !(neighbour is BlockTransparent);
+        return neighbour?.Type != Type;
     }
 }
 
@@ -155,7 +155,7 @@ public abstract class Fluid : Block
 
     protected float S => Mathf.Lerp(defaultSurface, minSurface, (float)currHorizontalFlow / MaxHorizontalFlow);
 
-    public Fluid(Vector3 pos) : base(pos)
+    public Fluid(Vector3Int pos) : base(pos)
     {
         currHorizontalFlow = 0;
         IsSource = true;

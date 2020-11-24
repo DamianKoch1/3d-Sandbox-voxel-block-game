@@ -25,23 +25,23 @@ public static class BlockDictionary
 
     private static void RegisterTextures()
     {
-        RegisterTexture(BlockType.Grass, 0, 0
-            , new TexOffset(1, 0
-                , Direction.North
-                , Direction.South
-                , Direction.East
-                , Direction.West
-            )
+        RegisterTexture(BlockType.Grass, 1, 0
+            , new TexOffset(0, 0, Direction.Up)
             , new TexOffset(2, 0, Direction.Down)
         );
 
-        RegisterBlock(BlockType.Dirt, 2, 0);
-        RegisterBlock(BlockType.Stone, 3, 0);
-        RegisterBlock(BlockType.BottomStone, 4, 0);
-        RegisterBlock(BlockType.Water, 5, 0);
-        RegisterBlock(BlockType.Glass, 6, 0);
-        RegisterBlock(BlockType.Tnt, 7, 0);
-        RegisterBlock(BlockType.Lava, 8, 0);
+        RegisterTexture(BlockType.Dirt, 2, 0);
+        RegisterTexture(BlockType.Stone, 3, 0);
+        RegisterTexture(BlockType.BottomStone, 4, 0);
+        RegisterTexture(BlockType.Water, 5, 0);
+        RegisterTexture(BlockType.Glass, 6, 0);
+        RegisterTexture(BlockType.Tnt, 7, 0);
+        RegisterTexture(BlockType.Lava, 8, 0);
+        RegisterTexture(BlockType.Log, 0, 1
+            , new TexOffset(1, 1, Direction.Up, Direction.Down)
+        );
+        RegisterTexture(BlockType.Leaves, 2, 1);
+        RegisterTexture(BlockType.Sand, 3, 1);
     }
 
 
@@ -50,14 +50,14 @@ public static class BlockDictionary
 
     public static Vector2[] GetBlockUVs(BlockType type, Direction dir) => UVs[type][dir];
 
-    private static void RegisterBlock(BlockType type, int uvX, int uvY)
+    private static void RegisterTexture(BlockType type, int uvX, int uvY)
     {
         UVs.Add(type, new Dictionary<Direction, Vector2[]>());
         foreach (var dir in directions)
             UVs[type].Add(dir, GetUVs(uvX, uvY));
     }
 
-    private static void RegisterTexture(BlockType type, int uvX, int uvY, params TexOffset[] customs)
+    private static void RegisterTexture(BlockType type, int defaultX, int defaultY, params TexOffset[] customs)
     {
         UVs.Add(type, new Dictionary<Direction, Vector2[]>());
         foreach (var tex in customs)
@@ -67,7 +67,7 @@ public static class BlockDictionary
         foreach (var dir in directions)
         {
             if (UVs[type].ContainsKey(dir)) continue;
-            UVs[type].Add(dir, GetUVs(uvX, uvY));
+            UVs[type].Add(dir, GetUVs(defaultX, defaultY));
         }
     }
 
@@ -75,7 +75,7 @@ public static class BlockDictionary
     {
         return new Vector2[]
         {
-            new Vector2(offsetX / TILESET_DIMENSIONSf, offsetY),
+            new Vector2(offsetX / TILESET_DIMENSIONSf, offsetY / TILESET_DIMENSIONSf),
             new Vector2(offsetX / TILESET_DIMENSIONSf, (offsetY + 1) / TILESET_DIMENSIONSf),
             new Vector2((offsetX + 1) / TILESET_DIMENSIONSf, (offsetY + 1) / TILESET_DIMENSIONSf),
             new Vector2((offsetX + 1) / TILESET_DIMENSIONSf, offsetY / TILESET_DIMENSIONSf)

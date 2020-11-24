@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Grass : BlockOpaque
 {
-    public Grass(Vector3 pos) : base(pos)
+    public Grass(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Grass;
     }
@@ -12,7 +12,7 @@ public class Grass : BlockOpaque
 
 public class Dirt : BlockOpaque
 {
-    public Dirt(Vector3 pos) : base(pos)
+    public Dirt(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Dirt;
     }
@@ -22,7 +22,7 @@ public class Stone : BlockOpaque
 {
     public override float BlastResistance => 0.7f;
 
-    public Stone(Vector3 pos) : base(pos)
+    public Stone(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Stone;
     }
@@ -32,7 +32,7 @@ public class BottomStone : BlockOpaque
 {
     public override float BlastResistance => 1f;
 
-    public BottomStone(Vector3 pos) : base(pos)
+    public BottomStone(Vector3Int pos) : base(pos)
     {
         Type = BlockType.BottomStone;
     }
@@ -46,7 +46,7 @@ public class Water : Fluid
 
     protected override int MaxHorizontalFlow => 5;
 
-    public Water(Vector3 pos) : base(pos)
+    public Water(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Water;
     }
@@ -66,7 +66,7 @@ public class Lava : Fluid
 
     public override float FogDensity => 0.45f;
 
-    public Lava(Vector3 pos) : base(pos)
+    public Lava(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Lava;
     }
@@ -74,7 +74,7 @@ public class Lava : Fluid
 
 public class Glass : BlockTransparent
 {
-    public Glass(Vector3 pos) : base(pos)
+    public Glass(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Glass;
     }
@@ -86,7 +86,7 @@ public class TNT : BlockOpaque, IUseable
 
     protected virtual float Scattering => 2;
 
-    public TNT(Vector3 pos) : base(pos)
+    public TNT(Vector3Int pos) : base(pos)
     {
         Type = BlockType.Tnt;
     }
@@ -112,5 +112,29 @@ public class TNT : BlockOpaque, IUseable
             }
         }
         TerrainGenerator.Instance.DestroyBlocks(blocksToDestroy);
+    }
+}
+
+public class Log : BlockOpaque
+{
+    public Log(Vector3Int pos) : base(pos)
+    {
+        Type = BlockType.Log;
+    }
+}
+
+public class Leaves : BlockTransparent
+{
+    public Leaves(Vector3Int pos) : base(pos)
+    {
+        Type = BlockType.Leaves;
+    }
+}
+
+public class Sand : BlockOpaque
+{
+    public Sand(Vector3Int pos) : base(pos)
+    {
+        Type = BlockType.Sand;
     }
 }

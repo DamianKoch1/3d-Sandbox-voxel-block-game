@@ -22,6 +22,12 @@ public class BlockFactory : MonoBehaviour
                 return new TNT(pos);
             case BlockType.Lava:
                 return new Lava(pos);
+            case BlockType.Log:
+                return new Log(pos);
+            case BlockType.Leaves:
+                return new Leaves(pos);
+            case BlockType.Sand:
+                return new Sand(pos);
         }
         return null;
     }
@@ -42,4 +48,7 @@ public enum BlockType
     Glass = 5,
     Tnt = 6,
     Lava = 7,
+    Log = 8,
+    Leaves = 9,
+    Sand = 10,
 }

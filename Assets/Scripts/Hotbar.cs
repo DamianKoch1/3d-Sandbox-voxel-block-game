@@ -28,6 +28,9 @@ public class Hotbar : MonoBehaviour
     [SerializeField]
     private float indicatorMinX = -360;
 
+    [SerializeField]
+    private float indicatorMinY = 0;
+
     private int selectionIdx;
 
     [SerializeField]
@@ -79,7 +82,10 @@ public class Hotbar : MonoBehaviour
     private void UpdateSelectionIndicator()
     {
         var selectionPos = selectionIndicator.transform.localPosition;
-        selectionPos.x = indicatorMinX + selectionIdx * indicatorStep;
+        var x = selectionIdx % BlockDictionary.TILESET_DIMENSIONS;
+        var y = selectionIdx / BlockDictionary.TILESET_DIMENSIONS;
+        selectionPos.x = indicatorMinX + x * indicatorStep;
+        selectionPos.y = indicatorMinY + y * indicatorStep;
         selectionIndicator.transform.localPosition = selectionPos;
     }
 }
