@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a17b2db5b6230b841b8dbcd7b4b0b282, type: 3}
+  m_Name: Hell
+  m_EditorClassIdentifier: 
+  minSurfaceLevel: 42
+  surfaceFluidLevel: 49
+  caveFluidLevel: 8
+  surfaceLayerSize: 5
+  surface: 2
+  floodedSurface: 10
+  surfaceLayer: 2
+  surfaceFluid: 7
+  log: 8
+  leaves: 9
+  caveFluid: 7
+  defaultBlock: 2
+  customLayers:
+  - minHeight: 1
+    size: 5
+    block: 3
+  surfaceNoise: {fileID: 11400000, guid: 6595d7cf31a83744d9c26763eaf38ca6, type: 2}
+  treeDensity: 0.00132
+  caveNoise: {fileID: 11400000, guid: 42ba83d04a63da840abf4dd415760d59, type: 2}
+  caveNoiseThreshold: 0.773
+  minCaveSurfaceDistance: 2

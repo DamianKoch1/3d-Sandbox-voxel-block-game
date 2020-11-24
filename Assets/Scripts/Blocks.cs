@@ -30,7 +30,7 @@ public class Stone : BlockOpaque
 
 public class BottomStone : BlockOpaque
 {
-    public override float BlastResistance => 1f;
+    public override float BlastResistance => 10000f;
 
     public BottomStone(Vector3Int pos) : base(pos)
     {

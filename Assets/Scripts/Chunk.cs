@@ -19,6 +19,7 @@ public class Chunk : ChunkMesh
     [SerializeField]
     private ChunkMesh transparentMesh;
 
+    private System.Random rng;
 
     public void Initialize(Vector2Int _pos)
     {
@@ -30,6 +31,21 @@ public class Chunk : ChunkMesh
         gameObject.name = "Chunk " + Pos;
     }
 
+    //TODO make Tree blueprint a SO ref in the biome
+    private void AddTree(int x, int y, int z)
+    {
+        var height = rng.Next(4, 8);
+        for (int y1 = 0; y1 < height; y1++)
+        {
+            Blocks[x, y + y1, z] = BlockFactory.Create(TerrainGenerator.Instance.CurrentBiome.log, new Vector3Int(x + Pos.x * SIZE, y + y1, z + Pos.y * SIZE));
+        }
+        for (int x1 = x - 2; x1 < x + 2; x1++)
+            for (int y1 = y + height - 2; y1 < y + height + 2; y1++)
+                for (int z1 = z - 2; z1 < z + 2; z1++)
+                    if (Blocks[x1, y1, z1] == null)
+                        Blocks[x1, y1, z1] = BlockFactory.Create(TerrainGenerator.Instance.CurrentBiome.leaves, new Vector3Int(x1 + Pos.x * SIZE, y1, z1 + Pos.y * SIZE));
+    }       
+
     /// <summary>
     /// Generates blocks / water using TerrainGenerator settings / noise
     /// </summary>
@@ -39,21 +55,28 @@ public class Chunk : ChunkMesh
         {
             Blocks = new Block[SIZE, HEIGHT, SIZE];
             var tg = TerrainGenerator.Instance;
+            var biome = tg.CurrentBiome;
+            rng = new System.Random(Pos.GetHashCode() + biome.surfaceNoise.seed);
             for (int x = 0; x < SIZE; x++)
             {
                 for (int z = 0; z < SIZE; z++)
                 {
                     var localSurfaceLevel = tg.SurfaceNoise(x + Pos.x * SIZE, z + Pos.y * SIZE);
-                    for (int y = Mathf.Max(localSurfaceLevel, tg.config.waterLevel); y >= 0; y--)
+                    var highestBlock = localSurfaceLevel;
+                    if (biome.surfaceFluidLevel > highestBlock)
+                    {
+                        highestBlock = biome.surfaceFluidLevel;
+                    }
+                    for (int y = highestBlock; y >= 0; y--)
                     {
                         Block block = null;
                         var blockPos = new Vector3Int(x + Pos.x * SIZE, y, z + Pos.y * SIZE);
                         if (y == 0) block = BlockFactory.Create(BlockType.BottomStone, blockPos);
-                        else if (y > localSurfaceLevel) block = BlockFactory.Create(BlockType.Water, blockPos);
-                        else if (y <= Mathf.Max(tg.config.waterLevel, localSurfaceLevel) - tg.config.minCaveSurfaceDistance
-                            && tg.CaveNoise(x + Pos.x * SIZE, y, z + Pos.y * SIZE) > tg.config.caveNoiseThreshold)
+                        else if (y > localSurfaceLevel) block = BlockFactory.Create(biome.surfaceFluid, blockPos);
+                        else if (y <= Mathf.Max(biome.surfaceFluidLevel, localSurfaceLevel) - biome.minCaveSurfaceDistance
+                            && tg.CaveNoise(x + Pos.x * SIZE, y, z + Pos.y * SIZE) > biome.caveNoiseThreshold)
                         {
-                            if (y < tg.config.lavaLevel) block = BlockFactory.Create(BlockType.Lava, blockPos);
+                            if (y < biome.caveFluidLevel) block = BlockFactory.Create(biome.caveFluid, blockPos);
                             else
                             {
                                 var above = Blocks[x, y + 1, z];
@@ -63,11 +86,22 @@ public class Chunk : ChunkMesh
                         }
                         else if (y == localSurfaceLevel)
                         {
-                            if (y >= tg.config.waterLevel) block = BlockFactory.Create(BlockType.Grass, blockPos);
-                            else block = BlockFactory.Create(BlockType.Dirt, blockPos);
+                            if (y >= biome.surfaceFluidLevel) block = BlockFactory.Create(biome.surface, blockPos);
+                            else block = BlockFactory.Create(biome.floodedSurface, blockPos);
                         }
-                        else if (y > localSurfaceLevel - tg.config.dirtLayerSize) block = BlockFactory.Create(BlockType.Dirt, blockPos);
-                        else if (y > 0) block = BlockFactory.Create(BlockType.Stone, blockPos);
+                        else if (y > localSurfaceLevel - biome.surfaceLayerSize) block = BlockFactory.Create(biome.surfaceLayer, blockPos);
+                        else
+                        {
+                            foreach (var layer in biome.customLayers)
+                            {
+                                if (y >= layer.minHeight && y < layer.minHeight + layer.size)
+                                {
+                                    block = BlockFactory.Create(layer.block, blockPos);
+                                    break;
+                                }
+                            }
+                            if (block == null) block = BlockFactory.Create(biome.defaultBlock, blockPos);
+                        }
                         Blocks[x, y, z] = block;
                     }
                 }

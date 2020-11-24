@@ -36,7 +36,10 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField, Space]
     private bool useRandomSeeds;
 
-    public TerrainGeneratorConfig config;
+    [SerializeField]
+    private Biome biome;
+
+    public Biome CurrentBiome => biome;
 
 
     [Header("Preview settings")]
@@ -164,8 +167,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <param name="_idx"></param>
     private void AddChunk(Vector2Int _idx)
     {
-        GenerateChunk(_idx);
-        MarkDirty(chunks[_idx]);
+        MarkDirty(GenerateChunk(_idx));
         MarkDirty(GetChunkByIdx(_idx + Vector2Int.left));
         MarkDirty(GetChunkByIdx(_idx + Vector2Int.right));
         MarkDirty(GetChunkByIdx(_idx + Vector2Int.up));
@@ -192,8 +194,8 @@ public class TerrainGenerator : MonoBehaviour
 
         if (useRandomSeeds)
         {
-            config.surfaceNoise.RandomizeSeed();
-            config.caveNoise.RandomizeSeed();
+            biome.surfaceNoise.RandomizeSeed();
+            biome.caveNoise.RandomizeSeed();
         }
 
         for (int x = -renderDistance; x < renderDistance; x++)
@@ -262,7 +264,7 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public int SurfaceNoise(float x, float z)
     {
-        return (int)Mathf.Min(config.surfaceNoise.GetValue(x, z) + config.minSurfaceLevel, Chunk.HEIGHT - 1);
+        return (int)Mathf.Min(biome.surfaceNoise.GetValue(x, z) + biome.minSurfaceLevel, Chunk.HEIGHT - 1);
     }
 
     /// <summary>
@@ -274,10 +276,11 @@ public class TerrainGenerator : MonoBehaviour
     /// <returns></returns>
     public float CaveNoise(float x, float y, float z)
     {
-        return config.caveNoise.GetValue(x, y, z);
+        return biome.caveNoise.GetValue(x, y, z);
     }
 
     #region Utils
+
     /// <summary>
     /// Get the chunk v is in
     /// </summary>
@@ -394,7 +397,7 @@ public class TerrainGenerator : MonoBehaviour
     #endregion
 
     #region Preview
-    private Texture2D surfaceSample, caveSample;
+    private Texture2D surfaceSample, treeSample, caveSample;
 
     public Texture2D GetSurfaceNoiseSampleTex()
     {
@@ -408,8 +411,8 @@ public class TerrainGenerator : MonoBehaviour
             for (int y = 0; y < size; y += noiseUnitPerPix)
             {
                 var surface = SurfaceNoise(x - offset, y - offset);
-                float sample = (float)(surface - config.minSurfaceLevel) / (Chunk.HEIGHT - 1 - config.minSurfaceLevel);
-                var c = new Color(sample, surface >= config.waterLevel ? sample + 0.3f : sample, surface >= config.waterLevel ? sample : sample + 0.3f);
+                float sample = (float)(surface - biome.minSurfaceLevel) / (Chunk.HEIGHT - 1 - biome.minSurfaceLevel);
+                var c = new Color(sample, surface >= biome.surfaceFluidLevel ? sample + 0.3f : sample, surface >= biome.surfaceFluidLevel ? sample : sample + 0.3f);
                 for (int x1 = 0; x1 < noiseUnitPerPix; x1++)
                     for (int y1 = 0; y1 < noiseUnitPerPix; y1++)
                         surfaceSample.SetPixel(x + x1, y + y1, c);
@@ -431,7 +434,7 @@ public class TerrainGenerator : MonoBehaviour
             {
                 float sample = CaveNoise(x - offset, y - offset, caveNoiseSampleZ);
                 var c = Color.black;
-                if (sample > config.caveNoiseThreshold)
+                if (sample > biome.caveNoiseThreshold)
                 {
                     c = Color.white;
                 }
