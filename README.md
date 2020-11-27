@@ -7,13 +7,13 @@ Minecraft-like prototype with procedurally generated terrain and different types
 
 ● opaque / transparent blocks
 
-● procedural terrain using 2 layers of perlin noise as a heightmap
+● procedural terrain using layered simplex noise as a heightmap
 
-● caves using a 3d perlin noise
+● caves using a 3d simplex noise
 
 ● optimized chunk meshes, only visible faces are drawn
 
-● flowing fluids
+● flowing fluids with meshes adapting to flown distance
 
 ● interactable blocks
 
